@@ -169,6 +169,13 @@ function setSyncStatus(message) {
   if (target) target.textContent = message;
 }
 
+function withTimeout(promise, milliseconds = 15000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Przekroczono czas połączenia. Sprawdź internet i spróbuj ponownie.')), milliseconds))
+  ]);
+}
+
 async function syncStateToCloud() {
   if (!currentUser || !supabaseClient) return;
   setSyncStatus('Zapisywanie zmian online…');
@@ -209,10 +216,14 @@ async function activateSession(session) {
 
 async function initialiseCloud() {
   if (!window.supabase) { setAuthMessage('Nie udało się uruchomić połączenia z bazą.', true); return; }
-  supabaseClient = window.supabase.createClient(supabaseUrl, supabasePublishableKey);
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) await activateSession(session);
-  supabaseClient.auth.onAuthStateChange((_event, nextSession) => { if (nextSession) activateSession(nextSession); });
+  try {
+    supabaseClient = window.supabase.createClient(supabaseUrl, supabasePublishableKey);
+    const { data: { session } } = await withTimeout(supabaseClient.auth.getSession());
+    if (session) await activateSession(session);
+    supabaseClient.auth.onAuthStateChange((_event, nextSession) => { if (nextSession) activateSession(nextSession); });
+  } catch (error) {
+    setAuthMessage(error.message || 'Nie udało się połączyć z bazą.', true);
+  }
 }
 
 const fields = {
@@ -377,16 +388,27 @@ document.querySelector('#auth-form').onsubmit = async (event) => {
   const email = document.querySelector('#auth-email').value.trim();
   const password = document.querySelector('#auth-password').value;
   setAuthMessage('Logowanie…');
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) setAuthMessage(error.message, true);
+  try {
+    const { error } = await withTimeout(supabaseClient.auth.signInWithPassword({ email, password }));
+    if (error) { setAuthMessage(error.message, true); return; }
+    const { data: { session } } = await withTimeout(supabaseClient.auth.getSession());
+    if (session) await activateSession(session);
+    else setAuthMessage('Logowanie nie utworzyło sesji. Odśwież stronę i spróbuj ponownie.', true);
+  } catch (error) {
+    setAuthMessage(error.message || 'Nie udało się zalogować.', true);
+  }
 };
 document.querySelector('#auth-signup').onclick = async () => {
   const email = document.querySelector('#auth-email').value.trim();
   const password = document.querySelector('#auth-password').value;
   if (!email || password.length < 8) { setAuthMessage('Wpisz e-mail oraz hasło o długości co najmniej 8 znaków.', true); return; }
   setAuthMessage('Tworzenie konta…');
-  const { error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` } });
-  setAuthMessage(error ? error.message : 'Sprawdź e-mail i potwierdź utworzenie konta.', Boolean(error));
+  try {
+    const { error } = await withTimeout(supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` } }));
+    setAuthMessage(error ? error.message : 'Sprawdź e-mail i potwierdź utworzenie konta.', Boolean(error));
+  } catch (error) {
+    setAuthMessage(error.message || 'Nie udało się utworzyć konta.', true);
+  }
 };
 document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
 const themeToggle = document.querySelector('.theme-toggle');
