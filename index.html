@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101d34" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Forma 3D" />
+    <title>Forma — sprzedaż 3D</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="icon-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+      <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a3 3 0 0 1-3-3V7Z"/><path d="M3 8h17M16 14h2"/></symbol>
+      <symbol id="icon-store" viewBox="0 0 24 24"><path d="M3 10h18l-2-6H5l-2 6Z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M3 10c0 2 4 2 4 0 0 2 4 2 4 0 0 2 4 2 4 0 0 2 4 2 4 0"/></symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.1 2.1-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55v.08h-3v-.08a1.7 1.7 0 0 0-1.03-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.1-2.1.06-.06A1.7 1.7 0 0 0 7.06 15a1.7 1.7 0 0 0-1.55-1.03h-.08v-3h.08A1.7 1.7 0 0 0 7.06 9.94a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.1-2.1.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.55v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.1 2.1-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1.03h.08v3h-.08A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></symbol>
+      <symbol id="icon-trend-up" viewBox="0 0 24 24"><path d="m4 16 6-6 4 4 6-7"/><path d="M15 7h5v5"/></symbol>
+      <symbol id="icon-trend-down" viewBox="0 0 24 24"><path d="m4 8 6 6 4-4 6 7"/><path d="M15 17h5v-5"/></symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 15.3A8.5 8.5 0 0 1 8.7 3.5 8.5 8.5 0 1 0 20.5 15.3Z"/></symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    </svg>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard" aria-label="Forma — strona główna">
+          <span class="brand-mark">F</span><span>forma<span class="brand-dot">.</span></span>
+        </a>
+        <nav class="nav" aria-label="Główna nawigacja">
+          <button class="nav-item active" data-view="dashboard" data-tooltip="Pulpit" aria-label="Pulpit"><svg><use href="#icon-grid"/></svg><span>Pulpit</span></button>
+          <button class="nav-item" data-view="sales" data-tooltip="Sprzedaż" aria-label="Sprzedaż"><svg><use href="#icon-receipt"/></svg><span>Sprzedaż</span></button>
+          <button class="nav-item" data-view="inventory" data-tooltip="Produkty" aria-label="Produkty"><svg><use href="#icon-box"/></svg><span>Produkty</span></button>
+          <button class="nav-item" data-view="expenses" data-tooltip="Koszty" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Koszty</span></button>
+          <button class="nav-item" data-view="channels" data-tooltip="Kanały sprzedaży" aria-label="Kanały sprzedaży"><svg><use href="#icon-store"/></svg><span>Kanały</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="month-card"><span class="eyebrow">Sierpień 2026</span><strong id="sidebar-profit">0 zł</strong><span>zysku w tym miesiącu</span></div>
+          <button class="settings" data-view="settings" data-tooltip="Ustawienia" aria-label="Ustawienia"><svg><use href="#icon-settings"/></svg><span>Ustawienia</span></button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div><p class="eyebrow" id="page-kicker">TWOJA PRACOWNIA</p><h1 id="page-title">Dzień dobry, Łukasz <span class="sun">☀</span></h1></div>
+          <div class="top-actions"><button class="icon-button theme-toggle" title="Włącz tryb ciemny" aria-label="Włącz tryb ciemny"><svg class="icon-moon"><use href="#icon-moon"/></svg><svg class="icon-sun"><use href="#icon-sun"/></svg></button><button class="avatar" title="Ustawienia" data-view="settings">Ł</button></div>
+        </header>
+
+        <section id="dashboard" class="view active-view">
+          <div class="section-heading"><div><h2>Przegląd miesiąca</h2><p>Jak idzie Twoja sprzedaż wydruków 3D.</p></div><button class="primary-button" data-action="new-sale">+ Dodaj sprzedaż</button></div>
+          <div class="metrics-grid">
+            <article class="metric-card income"><div class="metric-label"><span>Przychód</span><i><svg><use href="#icon-trend-up"/></svg></i></div><strong id="metric-revenue">0 zł</strong><p id="metric-revenue-note">Brak sprzedaży w tym miesiącu</p></article>
+            <article class="metric-card"><div class="metric-label"><span>Koszty</span><i><svg><use href="#icon-trend-down"/></svg></i></div><strong id="metric-expenses">0 zł</strong><p id="metric-expenses-note">Dodaj pierwszy koszt</p></article>
+            <article class="metric-card profit"><div class="metric-label"><span>Zysk</span><i><svg><use href="#icon-spark"/></svg></i></div><strong id="metric-profit">0 zł</strong><p id="metric-profit-note">Przychód minus koszty</p></article>
+            <article class="metric-card"><div class="metric-label"><span>Sprzedane sztuki</span><i><svg><use href="#icon-box"/></svg></i></div><strong id="metric-units">0</strong><p id="metric-units-note">w tym miesiącu</p></article>
+          </div>
+          <div class="dashboard-grid">
+            <section class="panel chart-panel"><div class="panel-header"><div><h3>Przychody i koszty</h3><p>Ostatnie 6 miesięcy</p></div><span class="legend"><i></i> Przychód <i class="cost"></i> Koszty</span></div><div class="chart" id="chart"></div><div class="chart-months" id="chart-months"></div></section>
+            <section class="panel channel-panel"><div class="panel-header"><div><h3>Sprzedaż według kanału</h3><p>Ten miesiąc</p></div></div><div id="channel-breakdown" class="channel-breakdown"></div></section>
+          </div>
+          <section class="panel recent-panel"><div class="panel-header"><div><h3>Ostatnia sprzedaż</h3><p>Twoje najnowsze zamówienia</p></div><button class="text-button" data-view="sales">Zobacz wszystkie →</button></div><div id="recent-sales" class="table-wrap"></div></section>
+        </section>
+
+        <section id="sales" class="view">
+          <div class="section-heading"><div><h2>Sprzedaż</h2><p>Każde zamówienie w jednym miejscu.</p></div><button class="primary-button" data-action="new-sale">+ Dodaj sprzedaż</button></div>
+          <section class="panel analysis-panel"><div class="panel-header"><div><h3>Analiza sprzedaży</h3><p id="sales-analysis-description">Ten miesiąc</p></div><div class="analysis-controls"><select id="sales-analysis-range"><option value="month">Ten miesiąc</option><option value="last-30">Ostatnie 30 dni</option><option value="year">Ten rok</option><option value="custom">Własny zakres</option></select><div id="sales-custom-range" class="date-range" hidden><input id="sales-date-from" type="date" aria-label="Data od" /><span>—</span><input id="sales-date-to" type="date" aria-label="Data do" /></div></div></div><div class="analysis-metrics"><div><span>Przychód</span><strong id="analysis-revenue">0 zł</strong></div><div><span>Zamówienia</span><strong id="analysis-orders">0</strong></div><div><span>Sprzedane sztuki</span><strong id="analysis-units">0</strong></div><div><span>Śr. wartość zamówienia</span><strong id="analysis-average">0 zł</strong></div><div><span>Najlepszy kanał</span><strong id="analysis-channel">—</strong></div></div></section>
+          <div class="toolbar"><div class="search"><svg><use href="#icon-search"/></svg><input id="sales-search" placeholder="Szukaj produktu" /></div><select id="sales-status-filter"><option value="all">Wszystkie statusy</option><option value="new">Nowe</option><option value="processing">W realizacji</option><option value="shipped">Wysłane</option><option value="done">Zakończone</option></select></div>
+          <section class="panel"><div id="sales-table" class="table-wrap"></div></section>
+        </section>
+
+        <section id="inventory" class="view">
+          <div class="section-heading"><div><h2>Produkty</h2><p>Twoje projekty drukowane na zamówienie.</p></div><button class="primary-button" data-action="new-product">+ Dodaj produkt</button></div>
+          <section id="inventory-grid" class="panel product-list"></section>
+        </section>
+
+        <section id="expenses" class="view">
+          <div class="section-heading"><div><h2>Koszty</h2><p>Materiały, wysyłka i inne wydatki pracowni.</p></div><button class="primary-button" data-action="new-expense">+ Dodaj koszt</button></div>
+          <div class="expense-summary"><div><span>Łączne koszty</span><strong id="total-expenses">0 zł</strong></div><div><span>W tym miesiącu</span><strong id="monthly-expenses">0 zł</strong></div></div>
+          <div class="toolbar expense-toolbar"><div class="search"><svg><use href="#icon-search"/></svg><input id="expense-search" placeholder="Szukaj kosztu" /></div><select id="expense-category-filter"><option value="all">Wszystkie typy</option><option value="Materiały">Materiały</option><option value="Pakowanie">Pakowanie</option><option value="Wysyłka">Wysyłka</option><option value="Narzędzia">Narzędzia</option><option value="Opłata Vinted">Opłata Vinted</option><option value="Opłata OLX">Opłata OLX</option><option value="Inne">Inne</option></select><select id="expense-period-filter"><option value="all">Wszystkie daty</option><option value="today">Dzisiaj</option><option value="last-30">Ostatnie 30 dni</option><option value="month">Ten miesiąc</option><option value="year">Ten rok</option><option value="custom">Własny zakres</option></select><div id="expense-custom-range" class="date-range" hidden><input id="expense-date-from" type="date" aria-label="Data kosztu od" /><span>—</span><input id="expense-date-to" type="date" aria-label="Data kosztu do" /></div></div>
+          <section class="panel"><div id="expenses-table" class="table-wrap"></div></section>
+        </section>
+
+        <section id="channels" class="view">
+          <div class="section-heading"><div><h2>Kanały sprzedaży</h2><p>Dodawaj miejsca, w których sprzedajesz.</p></div><button class="primary-button" data-action="new-channel">+ Dodaj kanał</button></div>
+          <div id="channels-grid" class="channels-grid"></div>
+        </section>
+
+        <section id="settings" class="view"><div class="section-heading"><div><h2>Ustawienia</h2><p>Zarządzaj danymi aplikacji.</p></div></div><section class="panel settings-panel"><h3>Dane demonstracyjne</h3><p>Możesz wyczyścić przykładowe wpisy i zacząć od zera. Tej operacji nie można cofnąć.</p><button id="reset-data" class="danger-button">Wyczyść wszystkie dane</button></section></section>
+      </main>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Nawigacja mobilna">
+      <button class="nav-item active" data-view="dashboard" aria-label="Pulpit"><svg><use href="#icon-grid"/></svg><span>Pulpit</span></button>
+      <button class="nav-item" data-view="sales" aria-label="Sprzedaż"><svg><use href="#icon-receipt"/></svg><span>Sprzedaż</span></button>
+      <button class="nav-item" data-view="inventory" aria-label="Produkty"><svg><use href="#icon-box"/></svg><span>Produkty</span></button>
+      <button class="nav-item" data-view="expenses" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Koszty</span></button>
+      <button class="nav-item" data-view="channels" aria-label="Kanały"><svg><use href="#icon-store"/></svg><span>Kanały</span></button>
+    </nav>
+
+    <div id="modal-root"></div>
+    <template id="modal-template"><div class="modal-backdrop"><form class="modal"><button type="button" class="modal-close" aria-label="Zamknij">×</button><p class="eyebrow" id="modal-kicker">NOWY WPIS</p><h2 id="modal-title">Dodaj</h2><div id="modal-fields" class="form-fields"></div><div class="modal-actions"><button type="button" class="secondary-button modal-cancel">Anuluj</button><button class="primary-button" type="submit">Zapisz</button></div></form></div></template>
+    <script src="./app.js"></script>
+  </body>
+</html>
