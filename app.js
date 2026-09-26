@@ -1,5 +1,10 @@
 const storeKey = 'forma-3d-seller-v1';
 const themeKey = 'forma-3d-theme';
+const supabaseUrl = 'https://tgfjjnjbhiiueszxptko.supabase.co';
+const supabasePublishableKey = 'sb_publishable_KIukGjgfYDKOfFq0KJH2qQ_DWkeLcOO';
+let supabaseClient = null;
+let currentUser = null;
+let cloudSaveTimer = null;
 const now = new Date();
 const iso = (date) => new Date(date).toISOString().slice(0, 10);
 const defaultState = {
@@ -23,9 +28,16 @@ const defaultState = {
   ]
 };
 
-let state = JSON.parse(localStorage.getItem(storeKey)) || defaultState;
+const persistedState = localStorage.getItem(storeKey);
+let state = persistedState ? JSON.parse(persistedState) : defaultState;
 const money = (value) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(value);
-const save = () => localStorage.setItem(storeKey, JSON.stringify(state));
+const emptyState = () => ({ sales: [], products: [], expenses: [], channels: [] });
+function save() {
+  localStorage.setItem(storeKey, JSON.stringify(state));
+  if (!currentUser || !supabaseClient) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(syncStateToCloud, 250);
+}
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
 const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Wysłane', done: 'Zakończone' };
@@ -145,6 +157,63 @@ function renderChannels() {
 }
 
 function renderAll() { renderDashboard(); renderSales(); renderInventory(); renderExpenses(); renderChannels(); }
+
+function setAuthMessage(message, isError = false) {
+  const target = document.querySelector('#auth-message');
+  target.textContent = message;
+  target.classList.toggle('is-error', isError);
+}
+
+function setSyncStatus(message) {
+  const target = document.querySelector('#sync-status');
+  if (target) target.textContent = message;
+}
+
+async function syncStateToCloud() {
+  if (!currentUser || !supabaseClient) return;
+  setSyncStatus('Zapisywanie zmian online…');
+  const { error } = await supabaseClient.from('forma_state').upsert({
+    user_id: currentUser.id,
+    data: state,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  setSyncStatus(error ? 'Nie udało się zapisać zmian. Sprawdź połączenie.' : 'Wszystkie dane są zsynchronizowane.');
+}
+
+async function loadCloudState() {
+  const { data, error } = await supabaseClient.from('forma_state').select('data').eq('user_id', currentUser.id).maybeSingle();
+  if (error) {
+    setSyncStatus('Baza nie jest jeszcze gotowa — uruchom skrypt konfiguracji.');
+    return false;
+  }
+  if (data?.data) {
+    state = { ...emptyState(), ...data.data };
+    localStorage.setItem(storeKey, JSON.stringify(state));
+  } else {
+    state = persistedState ? state : emptyState();
+    await syncStateToCloud();
+  }
+  return true;
+}
+
+async function activateSession(session) {
+  if (!session?.user || currentUser?.id === session.user.id) return;
+  currentUser = session.user;
+  document.querySelector('#auth-screen').hidden = true;
+  document.querySelector('#app-shell').hidden = false;
+  setSyncStatus('Pobieranie danych z chmury…');
+  const synced = await loadCloudState();
+  renderAll();
+  if (synced) setSyncStatus('Wszystkie dane są zsynchronizowane.');
+}
+
+async function initialiseCloud() {
+  if (!window.supabase) { setAuthMessage('Nie udało się uruchomić połączenia z bazą.', true); return; }
+  supabaseClient = window.supabase.createClient(supabaseUrl, supabasePublishableKey);
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) await activateSession(session);
+  supabaseClient.auth.onAuthStateChange((_event, nextSession) => { if (nextSession) activateSession(nextSession); });
+}
 
 const fields = {
   sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['status', 'Status', 'select'], ['shipped', 'Przesyłka nadana', 'select']],
@@ -302,7 +371,24 @@ document.querySelector('#expense-search').oninput = renderExpenses;
 document.querySelector('#expense-category-filter').onchange = renderExpenses;
 document.querySelector('#expense-date-from').onchange = renderExpenses;
 document.querySelector('#expense-date-to').onchange = renderExpenses;
-document.querySelector('#reset-data').onclick = () => { if (confirm('Usunąć wszystkie dane?')) { localStorage.removeItem(storeKey); state = { sales: [], products: [], expenses: [], channels: [] }; renderAll(); } };
+document.querySelector('#reset-data').onclick = () => { if (confirm('Usunąć wszystkie dane?')) { localStorage.removeItem(storeKey); state = emptyState(); save(); renderAll(); } };
+document.querySelector('#auth-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const email = document.querySelector('#auth-email').value.trim();
+  const password = document.querySelector('#auth-password').value;
+  setAuthMessage('Logowanie…');
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) setAuthMessage(error.message, true);
+};
+document.querySelector('#auth-signup').onclick = async () => {
+  const email = document.querySelector('#auth-email').value.trim();
+  const password = document.querySelector('#auth-password').value;
+  if (!email || password.length < 8) { setAuthMessage('Wpisz e-mail oraz hasło o długości co najmniej 8 znaków.', true); return; }
+  setAuthMessage('Tworzenie konta…');
+  const { error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` } });
+  setAuthMessage(error ? error.message : 'Sprawdź e-mail i potwierdź utworzenie konta.', Boolean(error));
+};
+document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
 const themeToggle = document.querySelector('.theme-toggle');
 function applyTheme(theme) { document.documentElement.dataset.theme = theme; themeToggle.title = theme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'; themeToggle.setAttribute('aria-label', themeToggle.title); }
 applyTheme(localStorage.getItem(themeKey) || 'light');
@@ -310,6 +396,7 @@ themeToggle.onclick = () => { const next = document.documentElement.dataset.them
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
 renderAll();
+initialiseCloud();
 
 if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
