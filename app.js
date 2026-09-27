@@ -131,7 +131,11 @@ function renderSalesAnalysis() {
 function renderSales() { document.querySelector('#sales-table').innerHTML = salesRows(getFilteredSales()); renderSalesAnalysis(); }
 
 function renderInventory() {
-  document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA OD</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${money(product.price)}</td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Nie dodano jeszcze produktów.</div>';
+  document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA BAZOWA</th><th>CENY W KANAŁACH</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => {
+    const channelPrices = Object.entries(product.channelPrices || {}).filter(([, price]) => Number(price) > 0);
+    const priceList = channelPrices.length ? channelPrices.map(([channel, price]) => `<span class="channel-price"><b>${escapeHtml(channel)}</b>${money(price)}</span>`).join('') : '<span class="muted">Brak cen kanałowych</span>';
+    return `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${money(product.price)}</td><td><div class="channel-prices">${priceList}</div></td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`;
+  }).join('')}</tbody></table></div>` : '<div class="empty">Nie dodano jeszcze produktów.</div>';
 }
 
 function getFilteredExpenses() {
@@ -262,6 +266,14 @@ function saleItemMarkup(item = {}) {
   return `<div class="sale-item-row"><select class="sale-product" aria-label="Produkt">${state.products.map((product) => `<option value="${escapeHtml(product.name)}" ${product.name === selected ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('')}</select><input class="sale-qty" type="number" min="1" step="1" value="${Number(item.qty) || 1}" aria-label="Liczba sztuk" /><button type="button" class="remove-sale-item" aria-label="Usuń produkt">×</button></div>`;
 }
 
+function productChannelPricesMarkup(record) {
+  if (!state.channels.length) return '<p class="form-hint full">Dodaj kanał sprzedaży, aby ustawić dla niego osobną cenę.</p>';
+  return `<div class="field full"><label>Ceny dla kanałów sprzedaży</label><p class="form-hint">Opcjonalne. Jeśli zostawisz puste, obowiązuje cena bazowa.</p><div class="channel-price-fields">${state.channels.map((channel) => {
+    const value = record?.channelPrices?.[channel.name] ?? '';
+    return `<label class="channel-price-field"><span>${escapeHtml(channel.name)}</span><input class="channel-price-input" data-channel-name="${escapeHtml(channel.name)}" type="number" min="0" step="0.01" value="${escapeHtml(value)}" placeholder="${escapeHtml(String(record?.price || ''))}" /></label>`;
+  }).join('')}</div></div>`;
+}
+
 function openModal(type, id = null) {
   const collection = type === 'sale' ? state.sales : type === 'product' ? state.products : type === 'expense' ? state.expenses : state.channels;
   const record = id === null ? null : collection.find((entry) => entry.id === id);
@@ -274,7 +286,7 @@ function openModal(type, id = null) {
   root.querySelector('#modal-title').textContent = titles[type];
   root.querySelector('#modal-kicker').textContent = editing ? 'EDYCJA' : type === 'sale' ? 'NOWE ZAMÓWIENIE' : 'NOWY WPIS';
   const formFields = root.querySelector('#modal-fields');
-  formFields.innerHTML = `${type === 'sale' ? '<div class="field full"><label>Produkty w sprzedaży</label><div id="sale-items" class="sale-items"></div><button type="button" id="add-sale-item" class="add-sale-item">+ Dodaj kolejny produkt</button></div>' : ''}${fields[type].map((field) => fieldMarkup(field, record)).join('')}`;
+  formFields.innerHTML = `${type === 'sale' ? '<div class="field full"><label>Produkty w sprzedaży</label><div id="sale-items" class="sale-items"></div><button type="button" id="add-sale-item" class="add-sale-item">+ Dodaj kolejny produkt</button></div>' : ''}${fields[type].map((field) => fieldMarkup(field, record)).join('')}${type === 'product' ? productChannelPricesMarkup(record) : ''}`;
 
   if (type === 'sale') {
     const list = root.querySelector('#sale-items');
@@ -301,6 +313,7 @@ function openModal(type, id = null) {
     }
     if (type === 'product') {
       value.price = Number(value.price);
+      value.channelPrices = Object.fromEntries([...modal.querySelectorAll('.channel-price-input')].map((input) => [input.dataset.channelName, Number(input.value)]).filter(([, price]) => Number.isFinite(price) && price > 0));
       if (editing) {
         const oldName = record.name;
         Object.assign(record, value);
