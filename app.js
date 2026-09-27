@@ -82,6 +82,7 @@ function renderDashboard() {
   document.querySelector('#metric-revenue-note').textContent = monthlySales.length ? `${monthlySales.length} zamówień w tym miesiącu` : 'Brak sprzedaży w tym miesiącu';
   document.querySelector('#metric-expenses-note').textContent = monthlyExpenses.length ? `${monthlyExpenses.length} pozycji kosztowych` : 'Dodaj pierwszy koszt';
   document.querySelector('#sidebar-profit').textContent = money(profit);
+  document.querySelector('#sidebar-month').textContent = now.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }).replace(/^./, (letter) => letter.toUpperCase());
   document.querySelector('#recent-sales').innerHTML = salesRows(state.sales.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5));
 
   const months = Array.from({ length: 6 }, (_, index) => new Date(now.getFullYear(), now.getMonth() - 5 + index, 1));
