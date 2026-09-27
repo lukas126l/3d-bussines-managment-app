@@ -245,6 +245,12 @@ function options(name) {
   return [];
 }
 
+function productPrice(productName, channelName = '') {
+  const product = state.products.find((entry) => entry.name === productName);
+  if (!product) return 0;
+  return Number(product.channelPrices?.[channelName] || product.price || 0);
+}
+
 function valueFor(field, record) {
   if (record && record[field] !== undefined) return record[field];
   if (field === 'date') return iso(now);
@@ -256,14 +262,17 @@ function valueFor(field, record) {
 function fieldMarkup([name, label, type, className], record) {
   const value = valueFor(name, record);
   const full = className || '';
-  if (type === 'select') return `<div class="field ${full}"><label for="field-${name}">${label}</label><select id="field-${name}" name="${name}">${options(name).map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value) ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`).join('')}</select></div>`;
+  if (type === 'select') {
+    const placeholder = name === 'channel' ? `<option value="" ${!value ? 'selected' : ''} disabled>Wybierz kanał</option>` : '';
+    return `<div class="field ${full}"><label for="field-${name}">${label}</label><select id="field-${name}" name="${name}" required>${placeholder}${options(name).map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value) ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`).join('')}</select></div>`;
+  }
   const numberOptions = name === 'stock' ? 'min="0" step="1"' : name === 'amount' || name === 'price' ? 'min="0" step="0.01"' : '';
   return `<div class="field ${full}"><label for="field-${name}">${label}</label><input id="field-${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${numberOptions} required /></div>`;
 }
 
 function saleItemMarkup(item = {}) {
-  const selected = item.product || state.products[0]?.name || '';
-  return `<div class="sale-item-row"><select class="sale-product" aria-label="Produkt">${state.products.map((product) => `<option value="${escapeHtml(product.name)}" ${product.name === selected ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('')}</select><input class="sale-qty" type="number" min="1" step="1" value="${Number(item.qty) || 1}" aria-label="Liczba sztuk" /><button type="button" class="remove-sale-item" aria-label="Usuń produkt">×</button></div>`;
+  const selected = item.product || '';
+  return `<div class="sale-item-row"><select class="sale-product" aria-label="Produkt" required><option value="" ${!selected ? 'selected' : ''} disabled>Wybierz produkt</option>${state.products.map((product) => `<option value="${escapeHtml(product.name)}" ${product.name === selected ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('')}</select><input class="sale-qty" type="number" min="1" step="1" value="${Number(item.qty) || 1}" aria-label="Liczba sztuk" /><button type="button" class="remove-sale-item" aria-label="Usuń produkt">×</button></div>`;
 }
 
 function productChannelPricesMarkup(record) {
@@ -292,8 +301,17 @@ function openModal(type, id = null) {
     const list = root.querySelector('#sale-items');
     const addItem = (item) => { list.insertAdjacentHTML('beforeend', saleItemMarkup(item)); };
     (record ? saleItems(record) : [{}]).forEach(addItem);
-    root.querySelector('#add-sale-item').onclick = () => addItem({});
-    list.onclick = (event) => { if (event.target.closest('.remove-sale-item') && list.querySelectorAll('.sale-item-row').length > 1) event.target.closest('.sale-item-row').remove(); };
+    const updateAmount = () => {
+      if (editing) return;
+      const channel = root.querySelector('#field-channel').value;
+      const total = [...list.querySelectorAll('.sale-item-row')].reduce((sum, row) => sum + productPrice(row.querySelector('.sale-product').value, channel) * Math.max(0, Number(row.querySelector('.sale-qty').value) || 0), 0);
+      root.querySelector('#field-amount').value = total ? total.toFixed(2).replace(/\.00$/, '') : '';
+    };
+    root.querySelector('#add-sale-item').onclick = () => { addItem({}); updateAmount(); };
+    list.onclick = (event) => { if (event.target.closest('.remove-sale-item') && list.querySelectorAll('.sale-item-row').length > 1) { event.target.closest('.sale-item-row').remove(); updateAmount(); } };
+    list.onchange = updateAmount;
+    list.oninput = updateAmount;
+    root.querySelector('#field-channel').onchange = updateAmount;
   }
 
   const close = () => { root.innerHTML = ''; };
