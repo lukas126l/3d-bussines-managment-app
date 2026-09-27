@@ -1,5 +1,4 @@
 const storeKey = 'forma-3d-seller-v1';
-const themeKey = 'forma-3d-theme';
 const supabaseUrl = 'https://tgfjjnjbhiiueszxptko.supabase.co';
 const supabasePublishableKey = 'sb_publishable_KIukGjgfYDKOfFq0KJH2qQ_DWkeLcOO';
 let supabaseClient = null;
@@ -412,10 +411,7 @@ document.querySelector('#auth-signup').onclick = async () => {
   }
 };
 document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
-const themeToggle = document.querySelector('.theme-toggle');
-function applyTheme(theme) { document.documentElement.dataset.theme = theme; themeToggle.title = theme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'; themeToggle.setAttribute('aria-label', themeToggle.title); }
-applyTheme(localStorage.getItem(themeKey) || 'light');
-themeToggle.onclick = () => { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(themeKey, next); applyTheme(next); };
+document.documentElement.dataset.theme = 'dark';
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
 renderAll();
