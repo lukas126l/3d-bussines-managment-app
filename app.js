@@ -1,4 +1,5 @@
 const storeKey = 'forma-3d-seller-v1';
+const themeKey = 'forma-3d-mobile-theme';
 const supabaseUrl = 'https://tgfjjnjbhiiueszxptko.supabase.co';
 const supabasePublishableKey = 'sb_publishable_KIukGjgfYDKOfFq0KJH2qQ_DWkeLcOO';
 let supabaseClient = null;
@@ -442,7 +443,24 @@ document.querySelector('#auth-signup').onclick = async () => {
   }
 };
 document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
-document.documentElement.dataset.theme = 'dark';
+
+const mobileThemeToggle = document.querySelector('#mobile-theme-toggle');
+const mobileViewport = window.matchMedia('(max-width: 600px)');
+function applyTheme() {
+  const selectedTheme = localStorage.getItem(themeKey) || 'dark';
+  const theme = mobileViewport.matches ? selectedTheme : 'dark';
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#101d34' : '#f5f7fb');
+  mobileThemeToggle.textContent = theme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny';
+  mobileThemeToggle.setAttribute('aria-pressed', String(theme === 'light'));
+}
+mobileThemeToggle.onclick = () => {
+  const activeTheme = document.documentElement.dataset.theme;
+  localStorage.setItem(themeKey, activeTheme === 'dark' ? 'light' : 'dark');
+  applyTheme();
+};
+mobileViewport.addEventListener('change', applyTheme);
+applyTheme();
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
 renderAll();
