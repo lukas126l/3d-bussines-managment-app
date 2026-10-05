@@ -174,6 +174,11 @@ function setSyncStatus(message) {
   if (target) target.textContent = message;
 }
 
+function setAppUpdateStatus(message) {
+  const target = document.querySelector('#app-update-status');
+  if (target) target.textContent = message;
+}
+
 function withTimeout(promise, milliseconds = 15000) {
   return Promise.race([
     promise,
@@ -443,6 +448,30 @@ document.querySelector('#auth-signup').onclick = async () => {
   }
 };
 document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
+
+document.querySelector('#check-updates').onclick = async () => {
+  const button = document.querySelector('#check-updates');
+  button.disabled = true;
+  setAppUpdateStatus('Pobieranie najnowszej wersji…');
+  try {
+    if (!('serviceWorker' in navigator)) {
+      window.location.reload();
+      return;
+    }
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      window.location.reload();
+      return;
+    }
+    await registration.update();
+    if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    setAppUpdateStatus('Aktualizacja pobrana. Uruchamiam aplikację ponownie…');
+    window.setTimeout(() => window.location.reload(), 900);
+  } catch (error) {
+    button.disabled = false;
+    setAppUpdateStatus('Nie udało się pobrać aktualizacji. Sprawdź połączenie z internetem i spróbuj ponownie.');
+  }
+};
 
 const mobileThemeToggle = document.querySelector('#mobile-theme-toggle');
 const mobileViewport = window.matchMedia('(max-width: 600px)');
