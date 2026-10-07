@@ -26,3 +26,5 @@ Po utworzeniu repozytorium i wysłaniu plików:
 3. Wybierz gałąź `main` oraz folder `/(root)`.
 
 Po publikacji aplikacja działa jako PWA: na iPhonie wybierz w Safari **Udostępnij → Do ekranu początkowego**, a na Androidzie w Chrome **Zainstaluj aplikację**.
+
+Jeżeli zainstalowana wersja nie pobiera najnowszego interfejsu, otwórz w Safari adres `odswiez.html` w katalogu aplikacji. Czyści on wyłącznie pliki tymczasowe aplikacji, zachowując dane zapisane lokalnie i online.
