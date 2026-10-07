@@ -33,6 +33,7 @@ const defaultState = {
 const persistedState = localStorage.getItem(storeKey);
 let state = persistedState ? JSON.parse(persistedState) : defaultState;
 const money = (value) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(value);
+const moneyExact = (value) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const emptyState = () => ({ sales: [], products: [], expenses: [], channels: [] });
 function save() {
   localStorage.setItem(storeKey, JSON.stringify(state));
@@ -66,7 +67,7 @@ function salesRows(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
   return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>STATUS</th><th></th></tr></thead><tbody>${sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${money(sale.amount)}</td><td><span class="status status-${sale.status}">${statusNames[sale.status]}</span></td><td><div class="row-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td><span class="status status-${sale.status}">${statusNames[sale.status]}</span></td><td><div class="row-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
@@ -137,8 +138,8 @@ function renderSales() { document.querySelector('#sales-table').innerHTML = sale
 function renderInventory() {
   document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA BAZOWA</th><th>CENY W KANAŁACH</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => {
     const channelPrices = Object.entries(product.channelPrices || {}).filter(([, price]) => Number(price) > 0);
-    const priceList = channelPrices.length ? channelPrices.map(([channel, price]) => `<span class="channel-price"><b>${escapeHtml(channel)}</b>${money(price)}</span>`).join('') : '<span class="muted">Brak cen kanałowych</span>';
-    return `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${money(product.price)}</td><td><div class="channel-prices">${priceList}</div></td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`;
+    const priceList = channelPrices.length ? channelPrices.map(([channel, price]) => `<span class="channel-price"><b>${escapeHtml(channel)}</b>${moneyExact(price)}</span>`).join('') : '<span class="muted">Brak cen kanałowych</span>';
+    return `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${moneyExact(product.price)}</td><td><div class="channel-prices">${priceList}</div></td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table></div>` : '<div class="empty">Nie dodano jeszcze produktów.</div>';
 }
 
