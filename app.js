@@ -5,6 +5,8 @@ const supabasePublishableKey = 'sb_publishable_KIukGjgfYDKOfFq0KJH2qQ_DWkeLcOO';
 let supabaseClient = null;
 let currentUser = null;
 let cloudSaveTimer = null;
+let cloudRefreshInFlight = false;
+let hasUnsyncedChanges = false;
 const now = new Date();
 const iso = (date) => new Date(date).toISOString().slice(0, 10);
 const defaultState = {
@@ -35,6 +37,7 @@ const emptyState = () => ({ sales: [], products: [], expenses: [], channels: [] 
 function save() {
   localStorage.setItem(storeKey, JSON.stringify(state));
   if (!currentUser || !supabaseClient) return;
+  hasUnsyncedChanges = true;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(syncStateToCloud, 250);
 }
@@ -187,14 +190,17 @@ function withTimeout(promise, milliseconds = 15000) {
 }
 
 async function syncStateToCloud() {
-  if (!currentUser || !supabaseClient) return;
+  if (!currentUser || !supabaseClient) return false;
+  const snapshot = JSON.stringify(state);
   setSyncStatus('Zapisywanie zmian online…');
   const { error } = await supabaseClient.from('forma_state').upsert({
     user_id: currentUser.id,
-    data: state,
+    data: JSON.parse(snapshot),
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
+  if (!error && JSON.stringify(state) === snapshot) hasUnsyncedChanges = false;
   setSyncStatus(error ? 'Nie udało się zapisać zmian. Sprawdź połączenie.' : 'Wszystkie dane są zsynchronizowane.');
+  return !error;
 }
 
 async function loadCloudState() {
@@ -206,11 +212,32 @@ async function loadCloudState() {
   if (data?.data) {
     state = { ...emptyState(), ...data.data };
     localStorage.setItem(storeKey, JSON.stringify(state));
+    hasUnsyncedChanges = false;
   } else {
     state = persistedState ? state : emptyState();
     await syncStateToCloud();
   }
   return true;
+}
+
+async function refreshCloudState() {
+  if (cloudRefreshInFlight || !currentUser || !supabaseClient) return false;
+  cloudRefreshInFlight = true;
+  try {
+    if (hasUnsyncedChanges && !(await syncStateToCloud())) return false;
+    setSyncStatus('Pobieranie nowych danych z chmury…');
+    const synced = await loadCloudState();
+    if (synced) {
+      renderAll();
+      setSyncStatus('Wszystkie dane są zsynchronizowane.');
+    }
+    return synced;
+  } catch (error) {
+    setSyncStatus('Nie udało się odświeżyć danych. Sprawdź połączenie.');
+    return false;
+  } finally {
+    cloudRefreshInFlight = false;
+  }
 }
 
 async function activateSession(session) {
@@ -448,6 +475,12 @@ document.querySelector('#auth-signup').onclick = async () => {
   }
 };
 document.querySelector('#sign-out').onclick = async () => { await supabaseClient.auth.signOut(); currentUser = null; document.querySelector('#app-shell').hidden = true; document.querySelector('#auth-screen').hidden = false; setAuthMessage('Wylogowano.'); };
+document.querySelector('#refresh-data').onclick = async () => {
+  const button = document.querySelector('#refresh-data');
+  button.disabled = true;
+  await refreshCloudState();
+  button.disabled = false;
+};
 
 document.querySelector('#check-updates').onclick = async () => {
   const button = document.querySelector('#check-updates');
@@ -490,6 +523,10 @@ mobileThemeToggle.onclick = () => {
 };
 mobileViewport.addEventListener('change', applyTheme);
 applyTheme();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshCloudState();
+});
+window.addEventListener('focus', refreshCloudState);
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
 renderAll();

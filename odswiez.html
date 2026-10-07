@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Odświeżanie Forma 3D</title>
+    <style>body{align-items:center;background:#0a1323;color:#edf3ff;display:flex;font:16px system-ui,sans-serif;justify-content:center;margin:0;min-height:100vh;text-align:center}main{max-width:300px}strong{color:#32d9c7;display:block;font-size:22px;margin-bottom:12px}</style>
+  </head>
+  <body>
+    <main><strong>Odświeżam aplikację…</strong><span>Twoje dane pozostaną bez zmian.</span></main>
+    <script>
+      (async () => {
+        const appScope = new URL('./', window.location.href).href;
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.filter((registration) => registration.scope === appScope).map((registration) => registration.unregister()));
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.filter((name) => name.startsWith('forma-3d-')).map((name) => caches.delete(name)));
+        window.location.replace(`${appScope}?odswiezono=${Date.now()}`);
+      })();
+    </script>
+  </body>
+</html>

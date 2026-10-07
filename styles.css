@@ -14,6 +14,7 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
 
 /* Mobilny dock: odsunięty od zaokrąglonych krawędzi telefonu, z aktywną ikoną zamiast całego pola. */
 .mobile-theme-panel{display:none}
+.app-update-panel{margin-bottom:16px}.app-update-panel .secondary-button,.sync-panel .secondary-button{margin-top:16px}.app-repair-link{display:inline-block;margin-top:12px}.settings-sign-out{display:block;margin-top:14px}
 @media(max-width:600px){
   body{padding-bottom:0}
   .main-content{padding-bottom:calc(102px + env(safe-area-inset-bottom))}
