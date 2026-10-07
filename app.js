@@ -125,10 +125,10 @@ function renderSalesAnalysis() {
   const range = document.querySelector('#sales-analysis-range').value;
   const from = document.querySelector('#sales-date-from').value;
   const to = document.querySelector('#sales-date-to').value;
-  document.querySelector('#analysis-revenue').textContent = money(revenue);
+  document.querySelector('#analysis-revenue').textContent = moneyExact(revenue);
   document.querySelector('#analysis-orders').textContent = sales.length;
   document.querySelector('#analysis-units').textContent = units;
-  document.querySelector('#analysis-average').textContent = money(sales.length ? revenue / sales.length : 0);
+  document.querySelector('#analysis-average').textContent = moneyExact(sales.length ? revenue / sales.length : 0);
   document.querySelector('#analysis-channel').textContent = bestChannel ? bestChannel[0] : '—';
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabels[range];
 }
@@ -156,9 +156,9 @@ function renderExpenses() {
   const total = state.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const monthly = state.expenses.filter((expense) => sameMonth(expense.date)).reduce((sum, expense) => sum + expense.amount, 0);
   const expenses = getFilteredExpenses();
-  document.querySelector('#total-expenses').textContent = money(total);
-  document.querySelector('#monthly-expenses').textContent = money(monthly);
-  document.querySelector('#expenses-table').innerHTML = expenses.length ? `<table><thead><tr><th>NAZWA KOSZTU</th><th>KATEGORIA</th><th>DATA</th><th>KWOTA</th><th></th></tr></thead><tbody>${expenses.map((expense) => `<tr><td>${escapeHtml(expense.name)}</td><td>${escapeHtml(expense.category)}</td><td>${new Date(expense.date).toLocaleDateString('pl-PL')}</td><td>${money(expense.amount)}</td><td><div class="row-actions"><button class="row-edit" data-edit-expense="${expense.id}">Edytuj</button><button class="row-delete" data-delete-expense="${expense.id}">Usuń</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Brak kosztów spełniających wybrane filtry.</div>';
+  document.querySelector('#total-expenses').textContent = moneyExact(total);
+  document.querySelector('#monthly-expenses').textContent = moneyExact(monthly);
+  document.querySelector('#expenses-table').innerHTML = expenses.length ? `<table><thead><tr><th>NAZWA KOSZTU</th><th>KATEGORIA</th><th>DATA</th><th>KWOTA</th><th></th></tr></thead><tbody>${expenses.map((expense) => `<tr><td>${escapeHtml(expense.name)}</td><td>${escapeHtml(expense.category)}</td><td>${new Date(expense.date).toLocaleDateString('pl-PL')}</td><td>${moneyExact(expense.amount)}</td><td><div class="row-actions"><button class="row-edit" data-edit-expense="${expense.id}">Edytuj</button><button class="row-delete" data-delete-expense="${expense.id}">Usuń</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Brak kosztów spełniających wybrane filtry.</div>';
 }
 
 function renderChannels() {
