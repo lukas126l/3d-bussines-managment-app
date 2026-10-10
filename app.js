@@ -44,10 +44,9 @@ function save() {
 }
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
-const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Wysłane', done: 'Zakończone' };
+const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Nadano', done: 'Zakończone' };
 const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres' };
-const fulfillmentValue = (sale) => `${sale?.status || 'new'}:${Boolean(sale?.shipped)}`;
-const fulfillmentText = (sale) => `${statusNames[sale.status] || statusNames.new} · ${sale.shipped ? 'nadano' : 'nie nadano'}`;
+const fulfillmentText = (sale) => statusNames[sale.status] || statusNames.new;
 
 function matchesDateRange(date, range, from = '', to = '') {
   const value = String(date).slice(0, 10);
@@ -280,7 +279,7 @@ async function initialiseCloud() {
 }
 
 const fields = {
-  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['fulfillment', 'Realizacja', 'select']],
+  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['status', 'Status realizacji', 'select']],
   product: [['name', 'Nazwa produktu', 'text', 'full'], ['price', 'Cena sprzedaży (zł)', 'number']],
   expense: [['name', 'Nazwa kosztu', 'text', 'full'], ['category', 'Kategoria', 'select'], ['amount', 'Kwota (zł)', 'number'], ['date', 'Data', 'date']],
   channel: [['name', 'Nazwa kanału', 'text', 'full'], ['symbol', 'Skrót (1–2 litery)', 'text']]
@@ -289,8 +288,6 @@ const fields = {
 function options(name) {
   if (name === 'channel') return state.channels.map((channel) => [channel.name, channel.name]);
   if (name === 'status') return Object.entries(statusNames);
-  if (name === 'shipped') return [['false', 'Nie, jeszcze nie'], ['true', 'Tak, wysłane']];
-  if (name === 'fulfillment') return Object.entries(statusNames).flatMap(([status, label]) => [[`${status}:false`, `${label} · nie nadano`], [`${status}:true`, `${label} · nadano`]]);
   if (name === 'category') return ['Materiały', 'Pakowanie', 'Wysyłka', 'Narzędzia', 'Opłata Vinted', 'Opłata OLX', 'Inne'].map((value) => [value, value]);
   return [];
 }
@@ -302,11 +299,9 @@ function productPrice(productName, channelName = '') {
 }
 
 function valueFor(field, record) {
-  if (field === 'fulfillment') return record ? fulfillmentValue(record) : 'new:false';
   if (record && record[field] !== undefined) return record[field];
   if (field === 'date') return iso(now);
   if (field === 'qty' || field === 'stock') return 1;
-  if (field === 'shipped') return 'false';
   return '';
 }
 
@@ -377,9 +372,7 @@ function openModal(type, id = null) {
       value.id = editing ? record.id : Date.now();
       value.amount = Number(value.amount);
       value.items = items;
-      [value.status, value.shipped] = value.fulfillment.split(':');
-      value.shipped = value.shipped === 'true';
-      delete value.fulfillment;
+      value.shipped = ['shipped', 'done'].includes(value.status);
       if (editing) Object.assign(record, value); else state.sales.unshift(value);
     }
     if (type === 'product') {
