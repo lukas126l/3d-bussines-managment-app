@@ -46,6 +46,8 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => 
 const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
 const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Wysłane', done: 'Zakończone' };
 const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres' };
+const fulfillmentValue = (sale) => `${sale?.status || 'new'}:${Boolean(sale?.shipped)}`;
+const fulfillmentText = (sale) => `${statusNames[sale.status] || statusNames.new} · ${sale.shipped ? 'nadano' : 'nie nadano'}`;
 
 function matchesDateRange(date, range, from = '', to = '') {
   const value = String(date).slice(0, 10);
@@ -65,10 +67,23 @@ function saleItems(sale) {
 
 function salesRows(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
-  return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>STATUS</th><th></th></tr></thead><tbody>${sales.map((sale) => {
+  return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td><span class="status status-${sale.status}">${statusNames[sale.status]}</span></td><td><div class="row-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table>`;
+}
+
+function salesCards(sales) {
+  if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
+  return sales.map((sale) => {
+    const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
+    const date = new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div><div class="sales-mobile-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
+  }).join('');
+}
+
+function salesList(sales) {
+  return `<div class="sales-table-desktop">${salesRows(sales)}</div><div class="sales-list-mobile">${salesCards(sales)}</div>`;
 }
 
 function renderDashboard() {
@@ -133,7 +148,7 @@ function renderSalesAnalysis() {
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabels[range];
 }
 
-function renderSales() { document.querySelector('#sales-table').innerHTML = salesRows(getFilteredSales()); renderSalesAnalysis(); }
+function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); }
 
 function renderInventory() {
   document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA BAZOWA</th><th>CENY W KANAŁACH</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => {
@@ -265,7 +280,7 @@ async function initialiseCloud() {
 }
 
 const fields = {
-  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['status', 'Status', 'select'], ['shipped', 'Przesyłka nadana', 'select']],
+  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['fulfillment', 'Realizacja', 'select']],
   product: [['name', 'Nazwa produktu', 'text', 'full'], ['price', 'Cena sprzedaży (zł)', 'number']],
   expense: [['name', 'Nazwa kosztu', 'text', 'full'], ['category', 'Kategoria', 'select'], ['amount', 'Kwota (zł)', 'number'], ['date', 'Data', 'date']],
   channel: [['name', 'Nazwa kanału', 'text', 'full'], ['symbol', 'Skrót (1–2 litery)', 'text']]
@@ -275,6 +290,7 @@ function options(name) {
   if (name === 'channel') return state.channels.map((channel) => [channel.name, channel.name]);
   if (name === 'status') return Object.entries(statusNames);
   if (name === 'shipped') return [['false', 'Nie, jeszcze nie'], ['true', 'Tak, wysłane']];
+  if (name === 'fulfillment') return Object.entries(statusNames).flatMap(([status, label]) => [[`${status}:false`, `${label} · nie nadano`], [`${status}:true`, `${label} · nadano`]]);
   if (name === 'category') return ['Materiały', 'Pakowanie', 'Wysyłka', 'Narzędzia', 'Opłata Vinted', 'Opłata OLX', 'Inne'].map((value) => [value, value]);
   return [];
 }
@@ -286,6 +302,7 @@ function productPrice(productName, channelName = '') {
 }
 
 function valueFor(field, record) {
+  if (field === 'fulfillment') return record ? fulfillmentValue(record) : 'new:false';
   if (record && record[field] !== undefined) return record[field];
   if (field === 'date') return iso(now);
   if (field === 'qty' || field === 'stock') return 1;
@@ -360,7 +377,9 @@ function openModal(type, id = null) {
       value.id = editing ? record.id : Date.now();
       value.amount = Number(value.amount);
       value.items = items;
+      [value.status, value.shipped] = value.fulfillment.split(':');
       value.shipped = value.shipped === 'true';
+      delete value.fulfillment;
       if (editing) Object.assign(record, value); else state.sales.unshift(value);
     }
     if (type === 'product') {
