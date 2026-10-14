@@ -45,8 +45,9 @@ function save() {
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
 const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Nadano', done: 'Zakończone' };
-const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres' };
+const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres dat' };
 const fulfillmentText = (sale) => statusNames[sale.status] || statusNames.new;
+const calendarMonthLabel = (yearMonth) => new Date(Number(yearMonth.slice(0, 4)), Number(yearMonth.slice(5, 7)) - 1, 1).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }).replace(/^./, (letter) => letter.toUpperCase());
 
 function matchesDateRange(date, range, from = '', to = '') {
   const value = String(date).slice(0, 10);
@@ -54,6 +55,7 @@ function matchesDateRange(date, range, from = '', to = '') {
   if (range === 'today') return value === iso(now);
   if (range === 'month') return sameMonth(value);
   if (range === 'year') return value.slice(0, 4) === String(now.getFullYear());
+  if (range.startsWith('calendar-month:')) return value.slice(0, 7) === range.slice('calendar-month:'.length);
   if (range === 'last-30') return value >= iso(new Date(now - 29 * 864e5)) && value <= iso(now);
   if (range === 'custom') return (!from || value >= from) && (!to || value <= to);
   return true;
@@ -144,7 +146,8 @@ function renderSalesAnalysis() {
   document.querySelector('#analysis-units').textContent = units;
   document.querySelector('#analysis-average').textContent = moneyExact(sales.length ? revenue / sales.length : 0);
   document.querySelector('#analysis-channel').textContent = bestChannel ? bestChannel[0] : '—';
-  document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabels[range];
+  const rangeLabel = range.startsWith('calendar-month:') ? calendarMonthLabel(range.slice('calendar-month:'.length)) : rangeLabels[range];
+  document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
 }
 
 function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); }
@@ -446,6 +449,17 @@ document.querySelector('#sales-search').oninput = renderSales;
 document.querySelector('#sales-status-filter').onchange = renderSales;
 const salesAnalysisRange = document.querySelector('#sales-analysis-range');
 const salesCustomRange = document.querySelector('#sales-custom-range');
+function addRecentCalendarMonths() {
+  const selected = salesAnalysisRange.value;
+  const currentDate = new Date();
+  const recentMonths = Array.from({ length: 3 }, (_, index) => {
+    const month = new Date(currentDate.getFullYear(), currentDate.getMonth() - index - 1, 1);
+    const yearMonth = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+    return `<option value="calendar-month:${yearMonth}">${calendarMonthLabel(yearMonth)}</option>`;
+  }).join('');
+  salesAnalysisRange.innerHTML = `<option value="month">Ten miesiąc</option>${recentMonths}<option value="year">Ten rok</option><option value="custom">Własny zakres dat</option>`;
+  salesAnalysisRange.value = [...salesAnalysisRange.options].some((option) => option.value === selected) ? selected : 'month';
+}
 function toggleSalesCustomRange() { salesCustomRange.hidden = salesAnalysisRange.value !== 'custom'; }
 salesAnalysisRange.onchange = () => { toggleSalesCustomRange(); renderSalesAnalysis(); };
 document.querySelector('#sales-date-from').onchange = renderSalesAnalysis;
@@ -539,7 +553,8 @@ applyTheme();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refreshCloudState();
 });
-window.addEventListener('focus', refreshCloudState);
+window.addEventListener('focus', () => { addRecentCalendarMonths(); refreshCloudState(); });
+addRecentCalendarMonths();
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
 renderAll();
