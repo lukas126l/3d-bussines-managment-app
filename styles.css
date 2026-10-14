@@ -50,3 +50,8 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
   .sales-mobile-meta .status{font-size:10px;margin-left:auto;padding:5px 8px}
   .sales-mobile-actions{border-top:1px solid var(--line);display:flex;gap:14px;margin-top:11px;padding-top:5px}
 }
+
+/* iOS przybliża pola z tekstem mniejszym niż 16 px. Zachowujemy naturalne skalowanie strony, ale pola nie wywołują już automatycznego zoomu. */
+@media(max-width:600px){
+  input,select,textarea{font-size:16px!important}
+}
