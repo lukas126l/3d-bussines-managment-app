@@ -425,9 +425,11 @@ function openModal(type, id = null) {
     (record ? saleItems(record) : [{}]).forEach(addItem);
     const updateAmount = () => {
       if (editing) return;
+      const amountField = root.querySelector('#field-amount');
+      if (amountField.value.trim()) return;
       const channel = root.querySelector('#field-channel').value;
       const total = [...list.querySelectorAll('.sale-item-row')].reduce((sum, row) => sum + productPrice(row.querySelector('.sale-product').value, channel) * Math.max(0, Number(row.querySelector('.sale-qty').value) || 0), 0);
-      root.querySelector('#field-amount').value = total ? total.toFixed(2).replace(/\.00$/, '') : '';
+      amountField.value = total ? total.toFixed(2).replace(/\.00$/, '') : '';
     };
     root.querySelector('#add-sale-item').onclick = () => { addItem({}); updateAmount(); };
     list.onclick = (event) => { if (event.target.closest('.remove-sale-item') && list.querySelectorAll('.sale-item-row').length > 1) { event.target.closest('.sale-item-row').remove(); updateAmount(); } };
