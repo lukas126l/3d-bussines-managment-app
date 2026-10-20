@@ -311,9 +311,24 @@ async function loadCloudState() {
 }
 
 async function refreshCloudState() {
-  if (cloudRefreshInFlight || !currentUser || !supabaseClient) return false;
+  if (cloudRefreshInFlight) { setSyncStatus('Synchronizacja już trwa…'); return false; }
+  if (!supabaseClient) { setSyncStatus('Łączenie z bazą nie zostało uruchomione. Odśwież aplikację i spróbuj ponownie.'); return false; }
+  if (!navigator.onLine) {
+    setSyncStatus(hasUnsyncedChanges ? 'Zmiana jest zapisana w tym urządzeniu i czeka na internet.' : 'Brak połączenia z internetem.');
+    return false;
+  }
   cloudRefreshInFlight = true;
   try {
+    const { data: sessionData, error: sessionError } = await withTimeout(supabaseClient.auth.getSession());
+    const session = sessionData?.session;
+    if (sessionError || !session) {
+      setSyncStatus('Sesja na tym urządzeniu wygasła. Wyloguj się i zaloguj ponownie.');
+      return false;
+    }
+    if (!currentUser || currentUser.id !== session.user.id) {
+      currentUser = null;
+      return activateSession(session);
+    }
     if (hasUnsyncedChanges && !(await syncStateToCloud())) return false;
     setSyncStatus('Pobieranie nowych danych z chmury…');
     const synced = await loadCloudState();
@@ -331,7 +346,7 @@ async function refreshCloudState() {
 }
 
 async function activateSession(session) {
-  if (!session?.user || currentUser?.id === session.user.id) return;
+  if (!session?.user || currentUser?.id === session.user.id) return false;
   currentUser = session.user;
   document.querySelector('#auth-screen').hidden = true;
   document.querySelector('#app-shell').hidden = false;
@@ -340,6 +355,7 @@ async function activateSession(session) {
   const synced = restoredPendingState ? await syncStateToCloud() : await loadCloudState();
   renderAll();
   if (synced) setSyncStatus('Wszystkie dane są zsynchronizowane.');
+  return synced;
 }
 
 async function initialiseCloud() {
@@ -580,6 +596,7 @@ document.querySelector('#sign-out').onclick = async () => { await supabaseClient
 document.querySelector('#refresh-data').onclick = async () => {
   const button = document.querySelector('#refresh-data');
   button.disabled = true;
+  setSyncStatus('Sprawdzanie połączenia z chmurą…');
   await refreshCloudState();
   button.disabled = false;
 };
