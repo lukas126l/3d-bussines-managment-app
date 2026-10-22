@@ -59,3 +59,10 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
 /* Natywna ikona daty w Safari/iOS nie dziedziczy koloru tekstu. */
 :root[data-theme="dark"] input[type="date"]{color-scheme:dark}
 :root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:brightness(0) invert(1);opacity:1}
+
+/* Safari na iPadzie nadaje dacie natywny minimalny rozmiar. */
+.form-fields>.field{min-width:0;align-content:start}
+.field input,.field select{min-width:0;max-width:100%}
+.field input[type="date"]{-webkit-appearance:none;appearance:none;display:block;min-height:0;height:40px;line-height:normal}
+.field input[type="date"]::-webkit-date-and-time-value{min-width:0;text-align:left}
+@media(min-width:601px){.form-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
