@@ -58,4 +58,4 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
 
 /* Natywna ikona daty w Safari/iOS nie dziedziczy koloru tekstu. */
 :root[data-theme="dark"] input[type="date"]{color-scheme:dark}
-:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.92}
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:brightness(0) invert(1);opacity:1}

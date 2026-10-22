@@ -206,10 +206,11 @@ function setAppUpdateStatus(message) {
 }
 
 function withTimeout(promise, milliseconds = 15000) {
+  let timer;
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Przekroczono czas połączenia. Sprawdź internet i spróbuj ponownie.')), milliseconds))
-  ]);
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Przekroczono czas połączenia. Sprawdź internet i spróbuj ponownie.')), milliseconds); })
+  ]).finally(() => clearTimeout(timer));
 }
 
 function readPendingState() {
@@ -364,7 +365,10 @@ async function initialiseCloud() {
     supabaseClient = window.supabase.createClient(supabaseUrl, supabasePublishableKey);
     const { data: { session } } = await withTimeout(supabaseClient.auth.getSession());
     if (session) await activateSession(session);
-    supabaseClient.auth.onAuthStateChange((_event, nextSession) => { if (nextSession) activateSession(nextSession); });
+    supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
+      // Leave the auth callback before starting other Supabase operations.
+      if (nextSession) setTimeout(() => { void activateSession(nextSession); }, 0);
+    });
   } catch (error) {
     setAuthMessage(error.message || 'Nie udało się połączyć z bazą.', true);
   }
@@ -616,6 +620,22 @@ document.querySelector('#check-updates').onclick = async () => {
       return;
     }
     await registration.update();
+    if (registration.installing || registration.waiting) {
+      const worker = registration.installing || registration.waiting;
+      await withTimeout(new Promise((resolve, reject) => {
+        const checkState = () => {
+          if (worker.state === 'activated' || worker.state === 'redundant') {
+            worker.removeEventListener('statechange', checkState);
+            if (worker.state === 'activated') resolve();
+            else reject(new Error('Nie udało się zainstalować aktualizacji.'));
+          } else if (worker.state === 'installed') {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        };
+        worker.addEventListener('statechange', checkState);
+        checkState();
+      }), 30000);
+    }
     if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     setAppUpdateStatus('Aktualizacja pobrana. Uruchamiam aplikację ponownie…');
     window.setTimeout(() => window.location.reload(), 900);

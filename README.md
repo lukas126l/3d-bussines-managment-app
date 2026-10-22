@@ -27,4 +27,6 @@ Po utworzeniu repozytorium i wysłaniu plików:
 
 Po publikacji aplikacja działa jako PWA: na iPhonie wybierz w Safari **Udostępnij → Do ekranu początkowego**, a na Androidzie w Chrome **Zainstaluj aplikację**.
 
-Jeżeli zainstalowana wersja nie pobiera najnowszego interfejsu, otwórz w Safari adres `odswiez.html` w katalogu aplikacji. Czyści on wyłącznie pliki tymczasowe aplikacji, zachowując dane zapisane lokalnie i online.
+Jeżeli zainstalowana wersja nie pobiera najnowszego interfejsu, wybierz w jej ustawieniach „Napraw aktualizację aplikacji”. Uruchom naprawę w aplikacji z ikonki, jeśli problem występuje właśnie tam: Safari i aplikacja na ekranie początkowym iOS mają oddzielną pamięć. Naprawa czyści wyłącznie pliki tymczasowe aplikacji, zachowując dane zapisane lokalnie i online.
+
+Service worker przechowuje wyłącznie znane pliki aplikacji. Zapytania do Supabase i zewnętrzne skrypty omijają tę pamięć; aktualizacja usuwa poprzednie cache `forma-3d-*`, w tym zapisane przez starsze wersje odpowiedzi API.
