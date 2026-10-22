@@ -143,8 +143,7 @@ function renderSalesAnalysis() {
   const completedSales = sales.filter((sale) => sale.status === 'done');
   const revenue = completedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const units = sales.reduce((sum, sale) => sum + saleItems(sale).reduce((itemSum, item) => itemSum + Number(item.qty), 0), 0);
-  const channelTotals = completedSales.reduce((totals, sale) => ({ ...totals, [sale.channel]: (totals[sale.channel] || 0) + sale.amount }), {});
-  const bestChannel = Object.entries(channelTotals).sort((a, b) => b[1] - a[1])[0];
+  const salesValue = sales.filter((sale) => sale.status !== 'cancelled').reduce((sum, sale) => sum + sale.amount, 0);
   const range = document.querySelector('#sales-analysis-range').value;
   const from = document.querySelector('#sales-date-from').value;
   const to = document.querySelector('#sales-date-to').value;
@@ -152,7 +151,7 @@ function renderSalesAnalysis() {
   document.querySelector('#analysis-orders').textContent = sales.length;
   document.querySelector('#analysis-units').textContent = units;
   document.querySelector('#analysis-average').textContent = moneyExact(completedSales.length ? revenue / completedSales.length : 0);
-  document.querySelector('#analysis-channel').textContent = bestChannel ? bestChannel[0] : '—';
+  document.querySelector('#analysis-sales-value').textContent = moneyExact(salesValue);
   const rangeLabel = range.startsWith('calendar-month:') ? calendarMonthLabel(range.slice('calendar-month:'.length)) : rangeLabels[range];
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
 }

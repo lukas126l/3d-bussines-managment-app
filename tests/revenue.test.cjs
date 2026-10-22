@@ -22,7 +22,7 @@ test('only completed sales contribute to revenue, profit, charts and channel rev
   assert.equal(node('#sidebar-profit').textContent, '70');
   assert.equal(node('#analysis-revenue').textContent, '100');
   assert.equal(node('#analysis-average').textContent, '100');
-  assert.equal(node('#analysis-channel').textContent, 'Paid');
+  assert.equal(node('#analysis-sales-value').textContent, '1600');
   assert.match(node('#channel-breakdown').innerHTML, /<strong>100<\/strong>/);
   assert.match(node('#channel-breakdown').innerHTML, /<strong>0<\/strong>/);
   state.sales[3].status = 'cancelled';
@@ -30,10 +30,11 @@ test('only completed sales contribute to revenue, profit, charts and channel rev
   assert.equal(node('#metric-revenue').textContent, '0');
   assert.equal(node('#metric-profit').textContent, '-30');
   assert.equal(node('#analysis-average').textContent, '0');
-  assert.equal(node('#analysis-channel').textContent, '—');
+  assert.equal(node('#analysis-sales-value').textContent, '1500');
   assert.equal([...node('#chart').innerHTML.matchAll(/class="bar revenue" style="height:([^"]+)"/g)].every((match) => match[1] === '3%'), true);
   state.sales[0].status = 'done';
   render();
   assert.equal(node('#metric-revenue').textContent, '500');
   assert.equal(node('#analysis-revenue').textContent, '500');
+  assert.equal(node('#analysis-sales-value').textContent, '1500');
 });
