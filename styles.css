@@ -66,3 +66,6 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
 .field input[type="date"]{-webkit-appearance:none;appearance:none;display:block;min-height:0;height:40px;line-height:normal}
 .field input[type="date"]::-webkit-date-and-time-value{min-width:0;text-align:left}
 @media(min-width:601px){.form-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.status-cancelled{background:#fbe9e7;color:#a43e39}
+:root[data-theme="dark"] .status-cancelled{background:#492b32;color:#ffb0ac}

@@ -49,7 +49,7 @@ function save() {
 }
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
-const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Nadano', done: 'Zakończone' };
+const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Wysłane', done: 'Zakończone', cancelled: 'Anulowane' };
 const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres dat' };
 const fulfillmentText = (sale) => statusNames[sale.status] || statusNames.new;
 const calendarMonthLabel = (yearMonth) => new Date(Number(yearMonth.slice(0, 4)), Number(yearMonth.slice(5, 7)) - 1, 1).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }).replace(/^./, (letter) => letter.toUpperCase());
@@ -94,8 +94,9 @@ function salesList(sales) {
 
 function renderDashboard() {
   const monthlySales = state.sales.filter((sale) => sameMonth(sale.date));
+  const completedSales = monthlySales.filter((sale) => sale.status === 'done');
   const monthlyExpenses = state.expenses.filter((expense) => sameMonth(expense.date));
-  const revenue = monthlySales.reduce((total, sale) => total + sale.amount, 0);
+  const revenue = completedSales.reduce((total, sale) => total + sale.amount, 0);
   const expenses = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
   const units = monthlySales.reduce((total, sale) => total + saleItems(sale).reduce((sum, item) => sum + Number(item.qty), 0), 0);
   const profit = revenue - expenses;
@@ -104,7 +105,7 @@ function renderDashboard() {
   document.querySelector('#metric-expenses').textContent = money(expenses);
   document.querySelector('#metric-profit').textContent = money(profit);
   document.querySelector('#metric-units').textContent = units;
-  document.querySelector('#metric-revenue-note').textContent = monthlySales.length ? `${monthlySales.length} zamówień w tym miesiącu` : 'Brak sprzedaży w tym miesiącu';
+  document.querySelector('#metric-revenue-note').textContent = completedSales.length ? `Zakończone zamówienia: ${completedSales.length}` : 'Brak zakończonych zamówień';
   document.querySelector('#metric-expenses-note').textContent = monthlyExpenses.length ? `${monthlyExpenses.length} pozycji kosztowych` : 'Dodaj pierwszy koszt';
   document.querySelector('#sidebar-profit').textContent = money(profit);
   document.querySelector('#sidebar-month').textContent = now.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }).replace(/^./, (letter) => letter.toUpperCase());
@@ -114,7 +115,7 @@ function renderDashboard() {
   let highestValue = 1;
   const data = months.map((month) => {
     const inMonth = (date) => { const value = new Date(date); return value.getMonth() === month.getMonth() && value.getFullYear() === month.getFullYear(); };
-    const monthRevenue = state.sales.filter((sale) => inMonth(sale.date)).reduce((sum, sale) => sum + sale.amount, 0);
+    const monthRevenue = state.sales.filter((sale) => sale.status === 'done' && inMonth(sale.date)).reduce((sum, sale) => sum + sale.amount, 0);
     const monthExpenses = state.expenses.filter((expense) => inMonth(expense.date)).reduce((sum, expense) => sum + expense.amount, 0);
     highestValue = Math.max(highestValue, monthRevenue, monthExpenses);
     return { month, revenue: monthRevenue, expenses: monthExpenses };
@@ -122,7 +123,7 @@ function renderDashboard() {
   document.querySelector('#chart').innerHTML = data.map((item) => `<div class="chart-group"><i class="bar revenue" style="height:${Math.max(3, item.revenue / highestValue * 100)}%"></i><i class="bar expense" style="height:${Math.max(3, item.expenses / highestValue * 100)}%"></i></div>`).join('');
   document.querySelector('#chart-months').innerHTML = data.map((item) => `<span>${item.month.toLocaleDateString('pl-PL', { month: 'short' })}</span>`).join('');
 
-  const channelTotals = state.channels.map((channel) => ({ ...channel, value: monthlySales.filter((sale) => sale.channel === channel.name).reduce((sum, sale) => sum + sale.amount, 0) }));
+  const channelTotals = state.channels.map((channel) => ({ ...channel, value: completedSales.filter((sale) => sale.channel === channel.name).reduce((sum, sale) => sum + sale.amount, 0) }));
   const topChannel = Math.max(1, ...channelTotals.map((channel) => channel.value));
   document.querySelector('#channel-breakdown').innerHTML = channelTotals.length ? channelTotals.map((channel) => `<div class="channel-row"><i class="channel-icon">${escapeHtml(channel.symbol)}</i><div><b>${escapeHtml(channel.name)}</b><div class="progress"><i style="width:${channel.value / topChannel * 100}%"></i></div></div><strong>${money(channel.value)}</strong></div>`).join('') : '<p class="muted">Dodaj pierwszy kanał.</p>';
 }
@@ -139,9 +140,10 @@ function getAnalysisSales() {
 
 function renderSalesAnalysis() {
   const sales = getAnalysisSales();
-  const revenue = sales.reduce((sum, sale) => sum + sale.amount, 0);
+  const completedSales = sales.filter((sale) => sale.status === 'done');
+  const revenue = completedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const units = sales.reduce((sum, sale) => sum + saleItems(sale).reduce((itemSum, item) => itemSum + Number(item.qty), 0), 0);
-  const channelTotals = sales.reduce((totals, sale) => ({ ...totals, [sale.channel]: (totals[sale.channel] || 0) + sale.amount }), {});
+  const channelTotals = completedSales.reduce((totals, sale) => ({ ...totals, [sale.channel]: (totals[sale.channel] || 0) + sale.amount }), {});
   const bestChannel = Object.entries(channelTotals).sort((a, b) => b[1] - a[1])[0];
   const range = document.querySelector('#sales-analysis-range').value;
   const from = document.querySelector('#sales-date-from').value;
@@ -149,7 +151,7 @@ function renderSalesAnalysis() {
   document.querySelector('#analysis-revenue').textContent = moneyExact(revenue);
   document.querySelector('#analysis-orders').textContent = sales.length;
   document.querySelector('#analysis-units').textContent = units;
-  document.querySelector('#analysis-average').textContent = moneyExact(sales.length ? revenue / sales.length : 0);
+  document.querySelector('#analysis-average').textContent = moneyExact(completedSales.length ? revenue / completedSales.length : 0);
   document.querySelector('#analysis-channel').textContent = bestChannel ? bestChannel[0] : '—';
   const rangeLabel = range.startsWith('calendar-month:') ? calendarMonthLabel(range.slice('calendar-month:'.length)) : rangeLabels[range];
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
