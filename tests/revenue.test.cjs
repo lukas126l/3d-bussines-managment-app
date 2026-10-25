@@ -23,6 +23,7 @@ test('only completed sales contribute to revenue, profit, charts and channel rev
   assert.equal(node('#analysis-revenue').textContent, '100');
   assert.equal(node('#analysis-average').textContent, '100');
   assert.equal(node('#analysis-sales-value').textContent, '1600');
+  assert.equal(node('#analysis-pending-value').textContent, '1500');
   assert.match(node('#channel-breakdown').innerHTML, /<strong>100<\/strong>/);
   assert.match(node('#channel-breakdown').innerHTML, /<strong>0<\/strong>/);
   state.sales[3].status = 'cancelled';
@@ -37,4 +38,26 @@ test('only completed sales contribute to revenue, profit, charts and channel rev
   assert.equal(node('#metric-revenue').textContent, '500');
   assert.equal(node('#analysis-revenue').textContent, '500');
   assert.equal(node('#analysis-sales-value').textContent, '1500');
+});
+
+test('pending order value includes every month and only active statuses', () => {
+  const nodes = new Map();
+  const node = (id) => { if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '' }); return nodes.get(id); };
+  node('#sales-analysis-range').value = 'month';
+  const currentMonthSales = [{ status: 'done', amount: 90, date: '2026-10-20' }];
+  const state = {
+    sales: [
+      ...currentMonthSales,
+      { status: 'new', amount: 100, date: '2026-01-10' },
+      { status: 'processing', amount: 200, date: '2025-05-10' },
+      { status: 'shipped', amount: 300, date: '2024-08-10' },
+      { status: 'done', amount: 400, date: '2025-01-10' },
+      { status: 'cancelled', amount: 500, date: '2025-01-10' },
+    ],
+  };
+  const context = vm.createContext({ state, document: { querySelector: node }, moneyExact: String, saleItems: () => [{ qty: 1 }], getAnalysisSales: () => currentMonthSales, rangeLabels: { month: 'Ten miesiąc' } });
+  vm.runInContext(source.slice(source.indexOf('function renderSalesAnalysis()'), source.indexOf('function renderSales()')), context);
+  vm.runInContext('renderSalesAnalysis();', context);
+  assert.equal(node('#analysis-pending-value').textContent, '600');
+  assert.equal(node('#analysis-revenue').textContent, '90');
 });
