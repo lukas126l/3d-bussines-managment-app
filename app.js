@@ -85,27 +85,34 @@ function snapshotSaleItem(product, qty, previous) {
   return { product, qty: Number(qty), unitCost };
 }
 
+function costedSaleItems(sale) {
+  return saleItems(sale).map((item) => {
+    const historical = typeof item.unitCost === 'number' && Number.isFinite(item.unitCost) && item.unitCost >= 0;
+    return { ...item, unitCost: historical ? item.unitCost : productionCost(state.products.find((product) => product.name === item.product)), estimated: !historical };
+  });
+}
+
 function saleProfit(sale) {
-  const items = saleItems(sale);
+  const items = costedSaleItems(sale);
   if (!items.length || items.some((item) => typeof item.unitCost !== 'number' || !Number.isFinite(item.unitCost) || item.unitCost < 0)) return null;
   const cost = items.reduce((sum, item) => sum + item.unitCost * Number(item.qty), 0) + Number(sale.sellingCosts || 0);
   const profit = Number(sale.amount) - cost;
-  return { cost, profit, margin: Number(sale.amount) > 0 ? profit / Number(sale.amount) * 100 : null };
+  return { cost, profit, margin: Number(sale.amount) > 0 ? profit / Number(sale.amount) * 100 : null, estimated: items.some((item) => item.estimated) };
 }
 
 function profitabilityMarkup(sale) {
   if (sale.status === 'cancelled') return '<span class="muted">Sprzedaż anulowana</span>';
   const result = saleProfit(sale);
-  if (!result) return '<span class="muted">Brak zapisanych kosztów</span>';
+  if (!result) return '<span class="muted">Uzupełnij parametry kosztów produktu</span>';
   const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-  return `<div class="cost-summary"><span>Koszt: ${moneyExact(result.cost)}</span><strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span></div>`;
+  return `<div class="cost-summary"><span>Koszt: ${moneyExact(result.cost)}</span><strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span>${result.estimated ? '<span class="cost-estimate">Szacunek według aktualnych kosztów produktu</span>' : ''}</div>`;
 }
 
 function salesRows(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
   return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>ZYSK I MARŻA</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale)}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale)}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
@@ -114,7 +121,7 @@ function salesCards(sales) {
   return sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
     const date = new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
-    return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div>${profitabilityMarkup(sale)}<div class="sales-mobile-actions"><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
+    return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div>${profitabilityMarkup(sale)}<div class="sales-mobile-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
   }).join('');
 }
 
@@ -195,7 +202,7 @@ function renderInventory() {
   document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA BAZOWA</th><th>CENY W KANAŁACH</th><th>PARAMETRY DRUKU</th><th>KOSZT / SZT.</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => {
     const channelPrices = Object.entries(product.channelPrices || {}).filter(([, price]) => Number(price) > 0);
     const priceList = channelPrices.length ? channelPrices.map(([channel, price]) => `<span class="channel-price"><b>${escapeHtml(channel)}</b>${moneyExact(price)}</span>`).join('') : '<span class="muted">Brak cen kanałowych</span>';
-    return `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${moneyExact(product.price)}</td><td><div class="channel-prices">${priceList}</div></td><td><div class="cost-summary"><span>${product.weightGrams == null || product.weightGrams === '' ? '—' : escapeHtml(product.weightGrams)} g</span><span>${product.printHours == null || product.printHours === '' ? '—' : escapeHtml(product.printHours)} h</span><span>${product.filamentPrice == null || product.filamentPrice === '' ? '—' : moneyExact(product.filamentPrice)} / kg</span></div></td><td>${productionCost(product) === null ? '<span class="muted">Uzupełnij koszty</span>' : moneyExact(productionCost(product))}</td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><strong>${escapeHtml(product.name)}</strong></td><td>${moneyExact(product.price)}</td><td><div class="channel-prices">${priceList}</div></td><td><div class="cost-summary"><span>${product.weightGrams == null || product.weightGrams === '' ? '—' : escapeHtml(product.weightGrams)} g</span><span>${product.printHours == null || product.printHours === '' ? '—' : escapeHtml(product.printHours)} h</span><span>${product.filamentPrice == null || product.filamentPrice === '' ? '—' : moneyExact(product.filamentPrice)} / kg</span></div></td><td>${productionCost(product) === null ? '<span class="muted">Uzupełnij koszty</span>' : moneyExact(productionCost(product))}</td><td><span class="on-demand">Druk na zamówienie</span></td><td><div class="row-actions"><button class="row-edit" data-view-product="${product.id}">Podgląd</button><button class="row-edit" data-edit-product="${product.id}">Edytuj</button><button class="row-delete" data-delete-product="${product.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table></div>` : '<div class="empty">Nie dodano jeszcze produktów.</div>';
 }
 
@@ -465,6 +472,41 @@ function productChannelPricesMarkup(record) {
   }).join('')}</div></div>`;
 }
 
+function openDetails(type, id) {
+  const record = (type === 'product' ? state.products : state.sales).find((entry) => entry.id === id);
+  if (!record) return;
+  const root = document.querySelector('#modal-root');
+  root.innerHTML = '';
+  root.append(document.querySelector('#modal-template').content.cloneNode(true));
+  const modal = root.querySelector('.modal');
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'modal-title');
+  root.querySelector('#modal-kicker').textContent = 'PODGLĄD';
+  root.querySelector('#modal-title').textContent = type === 'product' ? record.name : 'Szczegóły sprzedaży';
+  const detail = (label, value) => `<div class="detail-value"><dt>${label}</dt><dd>${value}</dd></div>`;
+  const number = (value, suffix) => value == null || value === '' ? '—' : `${escapeHtml(value)} ${suffix}`;
+  let content;
+  if (type === 'product') {
+    const cost = productionCost(record);
+    const prices = [['Cena bazowa', record.price], ...Object.entries(record.channelPrices || {}).filter(([, price]) => Number(price) > 0)];
+    content = `<dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', record.filamentPrice == null ? '—' : moneyExact(record.filamentPrice) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl><h3>Rentowność jednej sztuki</h3><div class="detail-prices">${prices.map(([name, price]) => `<section class="cost-preview"><strong>${escapeHtml(name)} · ${moneyExact(price)}</strong>${profitabilityMarkup({ amount: price, items: [{ product: record.name, qty: 1, unitCost: cost }] })}</section>`).join('')}</div><p class="form-hint">Marża przy cenie bazowej i cenach kanałów, przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p>`;
+  } else {
+    const items = costedSaleItems(record);
+    content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}${item.estimated ? ' · szacunek' : ' · koszt zapisany przy sprzedaży'}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Dla starszych pozycji bez zapisanego kosztu używamy aktualnych parametrów produktu. To szacunek, który może zmieniać się wraz z produktem; zapisane koszty historyczne pozostają bez zmian. Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
+  }
+  root.querySelector('#modal-fields').className = 'detail-content';
+  root.querySelector('#modal-fields').innerHTML = content;
+  root.querySelector('.modal-actions').innerHTML = '<button type="button" class="secondary-button detail-close">Zamknij</button><button type="button" class="primary-button detail-edit">Edytuj</button>';
+  const close = () => { root.innerHTML = ''; };
+  root.querySelector('.modal-close').onclick = close;
+  root.querySelector('.detail-close').onclick = close;
+  root.querySelector('.detail-edit').onclick = () => { close(); openModal(type, id); };
+  modal.onsubmit = (event) => event.preventDefault();
+  modal.onkeydown = (event) => { if (event.key === 'Escape') close(); };
+  root.querySelector('.detail-close').focus();
+}
+
 function openModal(type, id = null) {
   const collection = type === 'sale' ? state.sales : type === 'product' ? state.products : type === 'expense' ? state.expenses : state.channels;
   let record = id === null ? null : collection.find((entry) => entry.id === id);
@@ -587,6 +629,10 @@ document.querySelectorAll('[data-view]').forEach((button) => button.onclick = ()
 });
 document.querySelectorAll('[data-action]').forEach((button) => button.onclick = () => openModal(button.dataset.action.replace('new-', '')));
 document.addEventListener('click', (event) => {
+  const viewSale = event.target.closest('[data-view-sale]');
+  const viewProduct = event.target.closest('[data-view-product]');
+  if (viewSale) openDetails('sale', Number(viewSale.dataset.viewSale));
+  if (viewProduct) openDetails('product', Number(viewProduct.dataset.viewProduct));
   const saleButton = event.target.closest('[data-edit-sale]');
   const productButton = event.target.closest('[data-edit-product]');
   const channelButton = event.target.closest('[data-edit-channel]');

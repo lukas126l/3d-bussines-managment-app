@@ -41,6 +41,25 @@ test('one click saves each form after a background refresh, on desktop and mobil
         assert.equal(String(result.stored), value);
         assert.equal(result.open, false);
       }
+      // Details must be read-only and calculate old orders without persisting estimates.
+      const before = await page.evaluate(() => {
+        Object.assign(state.products.find((p) => p.id === 1), {weightGrams: 100, printHours: 3, filamentPrice: 80});
+        renderAll();
+        document.querySelector('[data-view="inventory"]').click();
+        return JSON.stringify(state);
+      });
+      await page.locator('[data-view-product="1"]').click();
+      assert.equal(await page.locator('.modal input, .modal select').count(), 0);
+      assert.match(await page.locator('.detail-content').innerText(), /Marża: 76,7%/);
+      await page.getByRole('button', {name: 'Zamknij', exact: true}).last().click();
+      await page.evaluate(() => document.querySelector('[data-view="sales"]').click());
+      await page.locator('[data-view-sale="1"]:visible').click();
+      assert.equal(await page.locator('.modal input, .modal select').count(), 0);
+      assert.match(await page.locator('.detail-content').innerText(), /Marża: 84,1%/);
+      assert.match(await page.locator('.detail-content').innerText(), /Szacunek według aktualnych/);
+      assert.equal(await page.evaluate(() => JSON.stringify(state)), before);
+      await page.getByRole('button', {name: 'Edytuj', exact: true}).last().click();
+      assert.equal(await page.locator('#field-amount').count(), 1);
       await page.close();
     }
   } finally { await browser.close(); }

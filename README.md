@@ -40,3 +40,5 @@ Koszt sztuki = gramy / 1000 × cena kg + godziny × stawka + dodatki. Sprzedaż 
 Zysk zamówienia = kwota sprzedaży − koszt produkcji wszystkich sztuk − wpisane opłaty i wysyłka po naszej stronie. Marża = zysk / kwota sprzedaży × 100%; przy kwocie zero pokazujemy kreskę. Wynik jest przed podatkiem i kosztami ogólnymi; dla aktywnych, niezakończonych zamówień jest prognozą. Nie wpisuj opakowania drugi raz, jeśli jest już w dodatkach produktu.
 
 Pulpit nadal pokazuje wpływy z zakończonych sprzedaży minus zarejestrowane wydatki. Nie odejmuje ponownie kosztów produkcji, ponieważ zakupy materiałów mogą już być wpisane w wydatkach.
+
+Produkty i sprzedaż mają przycisk „Podgląd” z widokiem tylko do odczytu. Podgląd produktu pokazuje marżę dla ceny bazowej i cen kanałowych, przed opłatami sprzedaży. Starsze zamówienia bez zapisanego kosztu korzystają z aktualnych parametrów produktu; wynik jest oznaczony jako szacunek. Sam podgląd nie zapisuje ani nie zmienia danych zamówienia.
