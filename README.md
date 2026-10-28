@@ -44,3 +44,9 @@ Pulpit nadal pokazuje wpływy z zakończonych sprzedaży minus zarejestrowane wy
 Produkty i sprzedaż mają przycisk „Podgląd” z widokiem tylko do odczytu. Podgląd produktu pokazuje marżę dla ceny bazowej i cen kanałowych, przed opłatami sprzedaży. Starsze zamówienia bez zapisanego kosztu korzystają z aktualnych parametrów produktu; wyliczenie nie dopisuje kosztu do historii zamówienia. Sam podgląd nie zapisuje ani nie zmienia danych zamówienia.
 
 Marża wybranego okresu w analizie sprzedaży to łączny zysk zakończonych zamówień / łączny przychód tych zamówień × 100%. Koszt obejmuje produkcję, dodatki oraz opłaty sprzedaży i wysyłkę wpisane przy zamówieniu. Nie odejmujemy ponownie zakupów z zakładki Koszty. Brak kosztów którejkolwiek zakończonej sprzedaży oznacza brak pełnego wyniku, a nie zerowy koszt.
+
+## Kalkulator negocjacji
+
+W Produktach przełącz widok na „Kalkulator ceny”. Wybierz produkt i cenę bazową lub kanał (Vinted wybierany domyślnie, jeśli ma własną cenę). Ustaw minimalną akceptowaną marżę, wpisz negocjowaną cenę oraz opcjonalne koszty i prowizję sprzedawcy. Kalkulator nie zmienia danych produktu.
+
+Minimalna cena = (koszt produkcji + dodatkowe koszty) / (1 − marża / 100 − prowizja / 100), zaokrąglona w górę do grosza. Początkowe 50% marży jest ustawieniem do zmiany, a nie rekomendacją. Wynik nie uwzględnia podatków i kosztów ogólnych.

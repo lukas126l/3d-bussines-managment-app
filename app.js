@@ -226,6 +226,74 @@ function renderInventory() {
   }).join('')}</tbody></table></div>` : '<div class="empty">Nie dodano jeszcze produktów.</div>';
 }
 
+function calculatePriceFloor(cost, targetMargin, extraCost = 0, feePercent = 0, offer = 0) {
+  if ([cost, targetMargin, extraCost, feePercent, offer].some((value) => typeof value !== 'number' || !Number.isFinite(value) || value < 0) || targetMargin + feePercent >= 100) return null;
+  const fixedCost = cost + extraCost;
+  const ceilMoney = (value) => Math.ceil((value - 1e-9) * 100) / 100;
+  const minimum = ceilMoney(fixedCost / (1 - (targetMargin + feePercent) / 100));
+  const breakEven = ceilMoney(fixedCost / (1 - feePercent / 100));
+  const profit = offer * (1 - feePercent / 100) - fixedCost;
+  return { minimum, breakEven, profit, margin: offer > 0 ? profit / offer * 100 : null, acceptable: offer >= minimum && offer > 0 };
+}
+
+function showInventoryTab(tab) {
+  document.querySelector('#inventory-grid').hidden = tab === 'calculator';
+  document.querySelector('#pricing-calculator').hidden = tab !== 'calculator';
+  document.querySelectorAll('[data-inventory-tab]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.inventoryTab === tab)));
+}
+
+function renderPricingCalculator() {
+  const productSelect = document.querySelector('#pricing-product');
+  const channelSelect = document.querySelector('#pricing-channel');
+  const oldProduct = productSelect.value;
+  productSelect.innerHTML = state.products.length ? state.products.map((product) => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`).join('') : '<option value="">Najpierw dodaj produkt</option>';
+  if (state.products.some((product) => String(product.id) === oldProduct)) productSelect.value = oldProduct;
+  const selectedProduct = () => state.products.find((product) => String(product.id) === productSelect.value);
+  const updateResults = () => {
+    const product = selectedProduct();
+    const cost = productionCost(product);
+    const resultRoot = document.querySelector('#pricing-results');
+    if (!product || cost === null) {
+      resultRoot.innerHTML = `<p class="pricing-message">${product ? 'Uzupełnij gramaturę, czas druku i cenę filamentu w produkcie, aby obliczyć minimalną cenę.' : 'Dodaj produkt, aby rozpocząć obliczenia.'}</p>`;
+      return;
+    }
+    const values = ['margin', 'extra', 'fee', 'offer'].map((name) => {
+      const input = document.querySelector(`#pricing-${name}`);
+      return input.value.trim() === '' || !input.validity.valid ? NaN : Number(input.value);
+    });
+    const result = calculatePriceFloor(cost, values[0], values[1], values[2], values[3]);
+    if (!result) {
+      resultRoot.innerHTML = '<p class="pricing-message" role="alert">Wpisz poprawne, nieujemne wartości. Suma marży i prowizji musi być mniejsza niż 100%.</p>';
+      return;
+    }
+    const catalogPrice = Number(product.channelPrices?.[channelSelect.value] ?? product.price ?? 0);
+    const discount = catalogPrice - result.minimum;
+    const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
+    resultRoot.innerHTML = `<section class="pricing-floor"><span>Twoja minimalna cena / szt.</span><strong>${moneyExact(result.minimum)}</strong><p>Przy minimalnej marży ${values[0].toLocaleString('pl-PL')}%</p></section><section class="pricing-offer ${result.acceptable ? 'is-acceptable' : 'is-below'}"><strong>${result.acceptable ? 'Oferta spełnia Twój próg marży' : 'Oferta poniżej Twojego progu'}</strong><div class="pricing-numbers"><div><span>Zysk przy tej ofercie</span><b>${moneyExact(result.profit)}</b></div><div><span>Marża przy tej ofercie</span><b>${margin}</b></div></div></section><dl class="detail-grid">${[['Cena katalogowa', moneyExact(catalogPrice)], ['Koszt produkcji / szt.', moneyExact(cost)], ['Cena bez straty', moneyExact(result.breakEven)], [discount >= 0 ? 'Możesz zejść z ceny o' : 'Cena katalogowa poniżej progu o', moneyExact(Math.abs(discount))]].map(([label, value]) => `<div class="detail-value"><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl><p class="form-hint">Zysk i marża przed podatkiem i kosztami ogólnymi. Cena minimalna jest zaokrąglana w górę do pełnego grosza.</p>`;
+  };
+  let channelProductId = oldProduct;
+  const loadChannels = (resetOffer) => {
+    const product = selectedProduct();
+    const previous = channelSelect.value;
+    const preserveChannel = channelProductId === productSelect.value && channelSelect.options.length > 0;
+    const prices = Object.entries(product?.channelPrices || {}).filter(([, price]) => Number(price) > 0);
+    channelSelect.innerHTML = '<option value="">Cena bazowa</option>' + prices.map(([name]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    channelSelect.value = preserveChannel && (previous === '' || prices.some(([name]) => name === previous)) ? previous : (prices.find(([name]) => name.toLowerCase() === 'vinted')?.[0] || '');
+    channelProductId = productSelect.value;
+    if (resetOffer || previous !== channelSelect.value) document.querySelector('#pricing-offer').value = product ? Number(product.channelPrices?.[channelSelect.value] ?? product.price ?? 0).toFixed(2) : '';
+    updateResults();
+  };
+  productSelect.onchange = () => loadChannels(true);
+  channelSelect.onchange = () => {
+    const product = selectedProduct();
+    document.querySelector('#pricing-offer').value = Number(product?.channelPrices?.[channelSelect.value] ?? product?.price ?? 0).toFixed(2);
+    updateResults();
+  };
+  ['margin', 'extra', 'fee', 'offer'].forEach((name) => { document.querySelector(`#pricing-${name}`).oninput = updateResults; });
+  document.querySelectorAll('[data-inventory-tab]').forEach((button) => { button.onclick = () => showInventoryTab(button.dataset.inventoryTab); });
+  loadChannels(oldProduct !== productSelect.value || document.querySelector('#pricing-offer').value === '');
+}
+
 function getFilteredExpenses() {
   const query = document.querySelector('#expense-search').value.toLowerCase();
   const category = document.querySelector('#expense-category-filter').value;
@@ -248,7 +316,7 @@ function renderChannels() {
   document.querySelector('#channels-grid').innerHTML = state.channels.map((channel) => { const count = state.sales.filter((sale) => sale.channel === channel.name).length; return `<article class="channel-card"><div class="channel-badge" style="background:${channel.color}">${escapeHtml(channel.symbol)}</div><strong>${count} zam.</strong><h3>${escapeHtml(channel.name)}</h3><p>Aktywny kanał sprzedaży</p><div class="channel-actions"><button class="channel-edit" data-edit-channel="${channel.id}">Edytuj</button><button class="channel-delete" data-delete-channel="${channel.id}">Usuń</button></div></article>`; }).join('');
 }
 
-function renderAll() { renderDashboard(); renderSales(); renderInventory(); renderExpenses(); renderChannels(); }
+function renderAll() { renderDashboard(); renderSales(); renderInventory(); renderPricingCalculator(); renderExpenses(); renderChannels(); }
 
 function setAuthMessage(message, isError = false) {
   const target = document.querySelector('#auth-message');

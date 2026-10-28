@@ -71,6 +71,31 @@ test('one click saves each form after a background refresh, on desktop and mobil
       assert.equal(await page.locator('#dashboard .profitability-strip').count(), 0);
       assert.equal(await page.locator('#analysis-sales-margin').textContent(), '18%');
       assert.doesNotMatch(await page.locator('#sales-table').innerText(), /Szacunek według aktualnych/);
+      await page.evaluate(() => {
+        state.products.find((p) => p.id === 1).channelPrices = {Vinted: 80};
+        renderAll();
+        document.querySelector('[data-view="inventory"]').click();
+      });
+      await page.getByRole('button', {name: 'Kalkulator ceny', exact: true}).click();
+      await page.locator('#pricing-product').selectOption('2');
+      await page.locator('#pricing-product').selectOption('1');
+      assert.equal(await page.locator('#inventory-grid').isVisible(), false);
+      assert.equal(await page.locator('#pricing-channel').inputValue(), 'Vinted');
+      assert.match(await page.locator('#pricing-results').innerText(), /19,60/);
+      const beforeCalculation = await page.evaluate(() => JSON.stringify(state));
+      await page.locator('#pricing-extra').fill('2');
+      await page.locator('#pricing-fee').fill('10');
+      await page.locator('#pricing-offer').fill('25');
+      assert.match(await page.locator('#pricing-results').innerText(), /29,50/);
+      assert.match(await page.locator('#pricing-results').innerText(), /poniżej Twojego progu/);
+      assert.match(await page.locator('#pricing-results').innerText(), /42,8%/);
+      assert.equal(await page.evaluate(() => JSON.stringify(state)), beforeCalculation);
+      await page.locator('#pricing-margin').fill('95');
+      assert.match(await page.locator('#pricing-results').innerText(), /mniejsza niż 100%/);
+      await page.locator('#pricing-product').selectOption('2');
+      assert.match(await page.locator('#pricing-results').innerText(), /Uzupełnij gramaturę/);
+      await page.getByRole('button', {name: 'Lista produktów', exact: true}).click();
+      assert.equal(await page.locator('#inventory-grid').isVisible(), true);
       await page.close();
     }
   } finally { await browser.close(); }
