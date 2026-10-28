@@ -53,3 +53,18 @@ test('mixed old and historical items keep known costs and flag estimates', () =>
   assert.equal(run('costedSaleItems(mixed)[1].unitCost'), 11.8);
   assert.equal(run('saleProfit({amount:40, items:[{product:"Legacy", qty:1, unitCost:0}]}).estimated'), false);
 });
+
+test('period margin uses total profit divided by total revenue, not mean percentages', () => {
+  const summary = run('salesProfitSummary([{status:"done",amount:100,items:[{qty:1,unitCost:10}]},{status:"done",amount:900,items:[{qty:1,unitCost:810}]},{status:"new",amount:1000,items:[{qty:1,unitCost:0}]},{status:"cancelled",amount:1000,items:[{qty:1,unitCost:0}]}])');
+  assert.equal(summary.revenue, 1000);
+  assert.equal(summary.cost, 820);
+  assert.equal(summary.profit, 180);
+  assert.equal(summary.margin, 18);
+});
+
+test('period margin remains unavailable for missing costs or zero revenue', () => {
+  assert.equal(run('salesProfitSummary([{status:"done",amount:100,product:"Missing",qty:1}]).margin'), null);
+  assert.equal(run('salesProfitSummary([{status:"done",amount:100,product:"Missing",qty:1}]).missing'), 1);
+  assert.equal(run('salesProfitSummary([]).margin'), null);
+  assert.equal(run('salesProfitSummary([{status:"done",amount:0,items:[{qty:1,unitCost:5}]}]).profit'), -5);
+});

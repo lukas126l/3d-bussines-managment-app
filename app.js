@@ -88,7 +88,7 @@ function snapshotSaleItem(product, qty, previous) {
 function costedSaleItems(sale) {
   return saleItems(sale).map((item) => {
     const historical = typeof item.unitCost === 'number' && Number.isFinite(item.unitCost) && item.unitCost >= 0;
-    return { ...item, unitCost: historical ? item.unitCost : productionCost(state.products.find((product) => product.name === item.product)), estimated: !historical };
+    return { ...item, unitCost: historical ? item.unitCost : productionCost((state.products || []).find((product) => product.name === item.product)), estimated: !historical };
   });
 }
 
@@ -105,7 +105,26 @@ function profitabilityMarkup(sale) {
   const result = saleProfit(sale);
   if (!result) return '<span class="muted">Uzupełnij parametry kosztów produktu</span>';
   const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-  return `<div class="cost-summary"><span>Koszt: ${moneyExact(result.cost)}</span><strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span>${result.estimated ? '<span class="cost-estimate">Szacunek według aktualnych kosztów produktu</span>' : ''}</div>`;
+  return `<div class="cost-summary"><span>Koszt: ${moneyExact(result.cost)}</span><strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span></div>`;
+}
+
+function salesProfitSummary(sales) {
+  const completed = sales.filter((sale) => sale.status === 'done');
+  const results = completed.map(saleProfit);
+  const missing = results.filter((result) => result === null).length;
+  const revenue = completed.reduce((sum, sale) => sum + Number(sale.amount), 0);
+  if (missing) return { revenue, cost: null, profit: null, margin: null, missing };
+  const cost = results.reduce((sum, result) => sum + result.cost, 0);
+  const profit = revenue - cost;
+  return { revenue, cost, profit, margin: revenue > 0 ? profit / revenue * 100 : null, missing: 0 };
+}
+
+function renderProfitSummary(prefix, sales) {
+  const summary = salesProfitSummary(sales);
+  document.querySelector(`#${prefix}-cost`).textContent = summary.cost === null ? '—' : moneyExact(summary.cost);
+  document.querySelector(`#${prefix}-profit`).textContent = summary.profit === null ? '—' : moneyExact(summary.profit);
+  document.querySelector(`#${prefix}-margin`).textContent = summary.margin === null ? '—' : `${summary.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
+  document.querySelector(`#${prefix}-margin-note`).textContent = summary.missing ? `Uzupełnij koszty produktów w ${summary.missing} zakończonych zamówieniach.` : 'Zakończone zamówienia · łączny zysk ÷ łączny przychód';
 }
 
 function salesRows(sales) {
@@ -137,6 +156,7 @@ function renderDashboard() {
   const expenses = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
   const units = monthlySales.reduce((total, sale) => total + saleItems(sale).reduce((sum, item) => sum + Number(item.qty), 0), 0);
   const profit = revenue - expenses;
+  renderProfitSummary('monthly-sales', monthlySales);
 
   document.querySelector('#metric-revenue').textContent = money(revenue);
   document.querySelector('#metric-expenses').textContent = money(expenses);
@@ -178,6 +198,7 @@ function getAnalysisSales() {
 function renderSalesAnalysis() {
   const sales = getAnalysisSales();
   const completedSales = sales.filter((sale) => sale.status === 'done');
+  renderProfitSummary('analysis-sales', sales);
   const pendingStatuses = new Set(['new', 'processing', 'shipped']);
   const revenue = completedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const units = sales.reduce((sum, sale) => sum + saleItems(sale).reduce((itemSum, item) => itemSum + Number(item.qty), 0), 0);
@@ -493,7 +514,7 @@ function openDetails(type, id) {
     content = `<dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', record.filamentPrice == null ? '—' : moneyExact(record.filamentPrice) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl><h3>Rentowność jednej sztuki</h3><div class="detail-prices">${prices.map(([name, price]) => `<section class="cost-preview"><strong>${escapeHtml(name)} · ${moneyExact(price)}</strong>${profitabilityMarkup({ amount: price, items: [{ product: record.name, qty: 1, unitCost: cost }] })}</section>`).join('')}</div><p class="form-hint">Marża przy cenie bazowej i cenach kanałów, przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p>`;
   } else {
     const items = costedSaleItems(record);
-    content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}${item.estimated ? ' · szacunek' : ' · koszt zapisany przy sprzedaży'}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Dla starszych pozycji bez zapisanego kosztu używamy aktualnych parametrów produktu. To szacunek, który może zmieniać się wraz z produktem; zapisane koszty historyczne pozostają bez zmian. Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
+    content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
   }
   root.querySelector('#modal-fields').className = 'detail-content';
   root.querySelector('#modal-fields').innerHTML = content;

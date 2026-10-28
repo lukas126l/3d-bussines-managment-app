@@ -41,4 +41,6 @@ Zysk zamówienia = kwota sprzedaży − koszt produkcji wszystkich sztuk − wpi
 
 Pulpit nadal pokazuje wpływy z zakończonych sprzedaży minus zarejestrowane wydatki. Nie odejmuje ponownie kosztów produkcji, ponieważ zakupy materiałów mogą już być wpisane w wydatkach.
 
-Produkty i sprzedaż mają przycisk „Podgląd” z widokiem tylko do odczytu. Podgląd produktu pokazuje marżę dla ceny bazowej i cen kanałowych, przed opłatami sprzedaży. Starsze zamówienia bez zapisanego kosztu korzystają z aktualnych parametrów produktu; wynik jest oznaczony jako szacunek. Sam podgląd nie zapisuje ani nie zmienia danych zamówienia.
+Produkty i sprzedaż mają przycisk „Podgląd” z widokiem tylko do odczytu. Podgląd produktu pokazuje marżę dla ceny bazowej i cen kanałowych, przed opłatami sprzedaży. Starsze zamówienia bez zapisanego kosztu korzystają z aktualnych parametrów produktu; wyliczenie nie dopisuje kosztu do historii zamówienia. Sam podgląd nie zapisuje ani nie zmienia danych zamówienia.
+
+Marża miesiąca na pulpicie oraz marża wybranego okresu w analizie sprzedaży to łączny zysk zakończonych zamówień / łączny przychód tych zamówień × 100%. Koszt obejmuje produkcję, dodatki oraz opłaty sprzedaży i wysyłkę wpisane przy zamówieniu. Nie odejmujemy ponownie zakupów z zakładki Koszty. Brak kosztów którejkolwiek zakończonej sprzedaży oznacza brak pełnego wyniku, a nie zerowy koszt.

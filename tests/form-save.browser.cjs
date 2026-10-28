@@ -56,10 +56,21 @@ test('one click saves each form after a background refresh, on desktop and mobil
       await page.locator('[data-view-sale="1"]:visible').click();
       assert.equal(await page.locator('.modal input, .modal select').count(), 0);
       assert.match(await page.locator('.detail-content').innerText(), /Marża: 84,1%/);
-      assert.match(await page.locator('.detail-content').innerText(), /Szacunek według aktualnych/);
+      assert.doesNotMatch(await page.locator('.detail-content').innerText(), /Szacunek według aktualnych/);
       assert.equal(await page.evaluate(() => JSON.stringify(state)), before);
       await page.getByRole('button', {name: 'Edytuj', exact: true}).last().click();
       assert.equal(await page.locator('#field-amount').count(), 1);
+      await page.getByRole('button', {name: 'Anuluj', exact: true}).click();
+      await page.evaluate(() => {
+        state.sales = [
+          {id: 10, date: iso(now), status:'done', amount:100, channel:'Etsy', items:[{product:'Test',qty:1,unitCost:10}]},
+          {id: 11, date: iso(now), status:'done', amount:900, channel:'Etsy', items:[{product:'Test',qty:1,unitCost:810}]}
+        ];
+        renderAll();
+      });
+      assert.equal(await page.locator('#monthly-sales-margin').textContent(), '18%');
+      assert.equal(await page.locator('#analysis-sales-margin').textContent(), '18%');
+      assert.doesNotMatch(await page.locator('#sales-table').innerText(), /Szacunek według aktualnych/);
       await page.close();
     }
   } finally { await browser.close(); }
