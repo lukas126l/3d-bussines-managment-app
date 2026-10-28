@@ -323,7 +323,11 @@ async function syncStateToCloud() {
 async function loadCloudState() {
   if (hasUnsyncedChanges && !(await syncStateToCloud())) return false;
   try {
-    const { data, error } = await withTimeout(supabaseClient.from('forma_state').select('data').eq('user_id', currentUser.id).maybeSingle());
+    const requestedState = JSON.stringify(state);
+    const requestedUserId = currentUser.id;
+    const { data, error } = await withTimeout(supabaseClient.from('forma_state').select('data').eq('user_id', requestedUserId).maybeSingle());
+    // Never overwrite edits saved while the cloud request was in flight.
+    if (currentUser?.id !== requestedUserId || hasUnsyncedChanges || JSON.stringify(state) !== requestedState) return false;
     if (error) {
       setSyncStatus('Nie udało się pobrać danych z bazy.');
       return false;
@@ -463,7 +467,7 @@ function productChannelPricesMarkup(record) {
 
 function openModal(type, id = null) {
   const collection = type === 'sale' ? state.sales : type === 'product' ? state.products : type === 'expense' ? state.expenses : state.channels;
-  const record = id === null ? null : collection.find((entry) => entry.id === id);
+  let record = id === null ? null : collection.find((entry) => entry.id === id);
   const editing = Boolean(record);
   const root = document.querySelector('#modal-root');
   const template = document.querySelector('#modal-template').content.cloneNode(true);
@@ -528,6 +532,15 @@ function openModal(type, id = null) {
   root.querySelector('.modal-cancel').onclick = close;
   modal.onsubmit = (event) => {
     event.preventDefault();
+    // A cloud refresh can replace the collection while this form stays open.
+    if (editing) {
+      const currentCollection = type === 'sale' ? state.sales : type === 'product' ? state.products : type === 'expense' ? state.expenses : state.channels;
+      record = currentCollection.find((entry) => entry.id === id);
+      if (!record) {
+        alert('Ten wpis został usunięty podczas edycji. Zamknij formularz i odśwież listę.');
+        return;
+      }
+    }
     const value = Object.fromEntries(new FormData(modal));
     if (type === 'sale') {
       const items = readItems();
