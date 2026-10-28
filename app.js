@@ -100,12 +100,12 @@ function saleProfit(sale) {
   return { cost, profit, margin: Number(sale.amount) > 0 ? profit / Number(sale.amount) * 100 : null, estimated: items.some((item) => item.estimated) };
 }
 
-function profitabilityMarkup(sale) {
+function profitabilityMarkup(sale, { showCost = true } = {}) {
   if (sale.status === 'cancelled') return '<span class="muted">Sprzedaż anulowana</span>';
   const result = saleProfit(sale);
   if (!result) return '<span class="muted">Uzupełnij parametry kosztów produktu</span>';
   const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-  return `<div class="cost-summary"><span>Koszt: ${moneyExact(result.cost)}</span><strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span></div>`;
+  return `<div class="cost-summary">${showCost ? `<span>Koszt: ${moneyExact(result.cost)}</span>` : ''}<strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span></div>`;
 }
 
 function salesProfitSummary(sales) {
@@ -131,7 +131,7 @@ function salesRows(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
   return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>ZYSK I MARŻA</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale)}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale, { showCost: false })}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
@@ -140,7 +140,7 @@ function salesCards(sales) {
   return sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
     const date = new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
-    return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div>${profitabilityMarkup(sale)}<div class="sales-mobile-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
+    return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div>${profitabilityMarkup(sale, { showCost: false })}<div class="sales-mobile-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
   }).join('');
 }
 
