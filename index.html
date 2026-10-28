@@ -79,7 +79,7 @@
           <div class="metrics-grid">
             <article class="metric-card income"><div class="metric-label"><span>Przychód</span><i><svg><use href="#icon-trend-up"/></svg></i></div><strong id="metric-revenue">0 zł</strong><p id="metric-revenue-note">Brak sprzedaży w tym miesiącu</p></article>
             <article class="metric-card"><div class="metric-label"><span>Koszty</span><i><svg><use href="#icon-trend-down"/></svg></i></div><strong id="metric-expenses">0 zł</strong><p id="metric-expenses-note">Dodaj pierwszy koszt</p></article>
-            <article class="metric-card profit"><div class="metric-label"><span>Zysk</span><i><svg><use href="#icon-spark"/></svg></i></div><strong id="metric-profit">0 zł</strong><p id="metric-profit-note">Zakończona sprzedaż minus koszty</p></article>
+            <article class="metric-card profit"><div class="metric-label"><span>Zysk</span><i><svg><use href="#icon-spark"/></svg></i></div><strong id="metric-profit">0 zł</strong><p id="metric-profit-note">Wpływy z zakończonych sprzedaży minus wpisane wydatki</p></article>
             <article class="metric-card"><div class="metric-label"><span>Sprzedane sztuki</span><i><svg><use href="#icon-box"/></svg></i></div><strong id="metric-units">0</strong><p id="metric-units-note">w tym miesiącu</p></article>
           </div>
           <div class="dashboard-grid">
@@ -97,12 +97,12 @@
         </section>
 
         <section id="inventory" class="view">
-          <div class="section-heading"><div><h2>Produkty</h2><p>Twoje projekty drukowane na zamówienie.</p></div><button class="primary-button" data-action="new-product">+ Dodaj produkt</button></div>
+          <div class="section-heading"><div><h2>Produkty</h2><p>Parametry druku i koszt produkcji jednej sztuki.</p></div><button class="primary-button" data-action="new-product">+ Dodaj produkt</button></div>
           <section id="inventory-grid" class="panel product-list"></section>
         </section>
 
         <section id="expenses" class="view">
-          <div class="section-heading"><div><h2>Koszty</h2><p>Materiały, wysyłka i inne wydatki pracowni.</p></div><button class="primary-button" data-action="new-expense">+ Dodaj koszt</button></div>
+          <div class="section-heading"><div><h2>Koszty</h2><p>Wydatki pracowni. Pulpit pokazuje wpływy minus wydatki; zysk i marżę zamówienia znajdziesz w Sprzedaży.</p></div><button class="primary-button" data-action="new-expense">+ Dodaj koszt</button></div>
           <div class="expense-summary"><div><span>Łączne koszty</span><strong id="total-expenses">0 zł</strong></div><div><span>W tym miesiącu</span><strong id="monthly-expenses">0 zł</strong></div></div>
           <div class="toolbar expense-toolbar"><div class="search"><svg><use href="#icon-search"/></svg><input id="expense-search" placeholder="Szukaj kosztu" /></div><select id="expense-category-filter"><option value="all">Wszystkie typy</option><option value="Materiały">Materiały</option><option value="Pakowanie">Pakowanie</option><option value="Wysyłka">Wysyłka</option><option value="Narzędzia">Narzędzia</option><option value="Opłata Vinted">Opłata Vinted</option><option value="Opłata OLX">Opłata OLX</option><option value="Inne">Inne</option></select><select id="expense-period-filter"><option value="all">Wszystkie daty</option><option value="today">Dzisiaj</option><option value="last-30">Ostatnie 30 dni</option><option value="month">Ten miesiąc</option><option value="year">Ten rok</option><option value="custom">Własny zakres</option></select><div id="expense-custom-range" class="date-range" hidden><input id="expense-date-from" type="date" aria-label="Data kosztu od" /><span>—</span><input id="expense-date-to" type="date" aria-label="Data kosztu do" /></div></div>
           <section class="panel"><div id="expenses-table" class="table-wrap"></div></section>

@@ -69,3 +69,5 @@ select{appearance:none;background-color:var(--surface);background-image:url("dat
 
 .status-cancelled{background:#fbe9e7;color:#a43e39}
 :root[data-theme="dark"] .status-cancelled{background:#492b32;color:#ffb0ac}
+
+.cost-summary{display:grid;gap:5px;font-size:12px;white-space:nowrap}.cost-preview{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}.cost-preview .form-hint{margin:8px 0 0}.modal{max-height:90dvh;overflow-y:auto}

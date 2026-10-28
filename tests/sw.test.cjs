@@ -27,7 +27,7 @@ function setup() {
     },
     caches: {
       open: async () => cache,
-      keys: async () => ['forma-3d-v23', 'forma-3d-v24', 'forma-3d-v25', 'forma-3d-v26', 'forma-3d-v27', 'forma-3d-v28', 'another-app'],
+      keys: async () => ['forma-3d-v23', 'forma-3d-v24', 'forma-3d-v25', 'forma-3d-v26', 'forma-3d-v27', 'forma-3d-v28', 'forma-3d-v29', 'forma-3d-v30', 'another-app'],
       delete: async (name) => { deleted.push(name); return true; },
     },
     fetch: async (request, options) => {
@@ -93,5 +93,5 @@ test('HTTP errors do not replace a valid cached asset', async () => {
 test('activation removes old application caches but preserves unrelated caches', async () => {
   const app = setup();
   await app.activate();
-  assert.deepEqual(app.deleted, ['forma-3d-v23', 'forma-3d-v24', 'forma-3d-v25', 'forma-3d-v26', 'forma-3d-v27']);
+  assert.deepEqual(app.deleted, ['forma-3d-v23', 'forma-3d-v24', 'forma-3d-v25', 'forma-3d-v26', 'forma-3d-v27', 'forma-3d-v28', 'forma-3d-v29']);
 });
