@@ -68,7 +68,7 @@ test('one click saves each form after a background refresh, on desktop and mobil
         ];
         renderAll();
       });
-      assert.equal(await page.locator('#monthly-sales-margin').textContent(), '18%');
+      assert.equal(await page.locator('#dashboard .profitability-strip').count(), 0);
       assert.equal(await page.locator('#analysis-sales-margin').textContent(), '18%');
       assert.doesNotMatch(await page.locator('#sales-table').innerText(), /Szacunek według aktualnych/);
       await page.close();

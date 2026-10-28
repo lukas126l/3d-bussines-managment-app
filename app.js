@@ -156,7 +156,6 @@ function renderDashboard() {
   const expenses = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
   const units = monthlySales.reduce((total, sale) => total + saleItems(sale).reduce((sum, item) => sum + Number(item.qty), 0), 0);
   const profit = revenue - expenses;
-  renderProfitSummary('monthly-sales', monthlySales);
 
   document.querySelector('#metric-revenue').textContent = money(revenue);
   document.querySelector('#metric-expenses').textContent = money(expenses);
