@@ -824,7 +824,7 @@ document.querySelector('#refresh-data').onclick = async () => {
   button.disabled = false;
 };
 
-document.querySelector('#check-updates').onclick = async () => {
+async function refreshApplication() {
   const button = document.querySelector('#check-updates');
   button.disabled = true;
   setAppUpdateStatus('Pobieranie najnowszej wersji…');
@@ -858,11 +858,14 @@ document.querySelector('#check-updates').onclick = async () => {
     if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     setAppUpdateStatus('Aktualizacja pobrana. Uruchamiam aplikację ponownie…');
     window.setTimeout(() => window.location.reload(), 900);
+    return true;
   } catch (error) {
     button.disabled = false;
     setAppUpdateStatus('Nie udało się pobrać aktualizacji. Sprawdź połączenie z internetem i spróbuj ponownie.');
+    return false;
   }
-};
+}
+document.querySelector('#check-updates').onclick = refreshApplication;
 
 const mobileThemeToggle = document.querySelector('#mobile-theme-toggle');
 const mobileViewport = window.matchMedia('(max-width: 600px)');
@@ -905,3 +908,75 @@ initialiseCloud();
 if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
+
+
+// Capture only deliberate downward gestures that begin at the page's top.
+function initialisePullRefresh() {
+  const shell = document.querySelector('#app-shell');
+  const indicator = document.createElement('div');
+  indicator.className = 'pull-refresh';
+  indicator.setAttribute('role', 'status');
+  indicator.setAttribute('aria-live', 'polite');
+  indicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 12M4 12l2.3 6A7 7 0 0 0 17.9 17"/></svg><span></span>';
+  document.body.append(indicator);
+  const label = indicator.querySelector('span');
+  const icon = indicator.querySelector('svg');
+  let start = null;
+  let distance = 0;
+  let busy = false;
+  let resetTimer;
+  const threshold = 80;
+  const blocked = () => shell.hidden || Boolean(document.querySelector('#modal-root').firstElementChild) || document.querySelector('#check-updates').disabled;
+  const reset = () => {
+    start = null;
+    distance = 0;
+    indicator.classList.remove('is-visible', 'is-ready', 'is-loading');
+  };
+  document.addEventListener('touchstart', (event) => {
+    if (busy) return;
+    clearTimeout(resetTimer);
+    reset();
+    if (event.touches.length !== 1 || window.scrollY > 0 || blocked()) return;
+    if (event.target.closest('input, textarea, select, button, a, [contenteditable], .table-wrap, .mobile-nav')) return;
+    // Leave independently scrollable areas to their native touch handling.
+    for (let node = event.target; node && node !== document.body; node = node.parentElement) {
+      if (node.scrollHeight > node.clientHeight && /auto|scroll/.test(getComputedStyle(node).overflowY)) return;
+    }
+    start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+  document.addEventListener('touchmove', (event) => {
+    if (!start || busy) return;
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || blocked() || window.scrollY > 0 || !event.cancelable) { reset(); return; }
+    const dy = touch.clientY - start.y;
+    if (dy < 0 || Math.abs(touch.clientX - start.x) > Math.max(12, dy)) { reset(); return; }
+    event.preventDefault();
+    distance = Math.min(112, dy * 0.5);
+    indicator.style.setProperty('--pull-distance', `${distance}px`);
+    icon.style.transform = `rotate(${distance / threshold * 240}deg)`;
+    indicator.classList.toggle('is-visible', distance > 8);
+    indicator.classList.toggle('is-ready', distance >= threshold);
+    const text = distance >= threshold ? 'Puść, aby odświeżyć' : 'Pociągnij, aby odświeżyć';
+    if (label.textContent !== text) label.textContent = text;
+  }, { passive: false });
+  document.addEventListener('touchcancel', () => { if (!busy) reset(); }, { passive: true });
+  document.addEventListener('touchend', async () => {
+    if (!start || busy) return;
+    if (distance < threshold || blocked()) { reset(); return; }
+    start = null;
+    busy = true;
+    indicator.classList.add('is-loading');
+    label.textContent = 'Odświeżanie aplikacji…';
+    try {
+      const result = await refreshApplication();
+      if (result !== false) return; // Keep the spinner until navigation.
+      label.textContent = 'Nie udało się odświeżyć. Spróbuj ponownie.';
+    } catch {
+      label.textContent = 'Nie udało się odświeżyć. Spróbuj ponownie.';
+    }
+    indicator.classList.remove('is-loading');
+    busy = false;
+    resetTimer = setTimeout(reset, 3000);
+  }, { passive: true });
+}
+initialisePullRefresh();
