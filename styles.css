@@ -108,3 +108,5 @@ html,body{overscroll-behavior-y:none}
   .pricing-fields label{font-size:14px}.pricing-fields input,.pricing-fields select{height:48px;font-size:16px}.pricing-item{grid-template-columns:minmax(0,1fr) 100px 30px}
   .pricing-item .remove-sale-item{height:48px}.pricing-floor>strong{font-size:42px}
 }
+
+.field[hidden]{display:none}

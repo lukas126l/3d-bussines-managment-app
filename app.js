@@ -148,9 +148,18 @@ function salesList(sales) {
   return `<div class="sales-table-desktop">${salesRows(sales)}</div><div class="sales-list-mobile">${salesCards(sales)}</div>`;
 }
 
+function saleRecognitionDate(sale) {
+  return sale.status === 'done' ? (sale.completedDate || sale.date) : sale.date;
+}
+
+function localDateToday() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function renderDashboard() {
   const monthlySales = state.sales.filter((sale) => sameMonth(sale.date));
-  const completedSales = monthlySales.filter((sale) => sale.status === 'done');
+  const completedSales = state.sales.filter((sale) => sale.status === 'done' && sameMonth(saleRecognitionDate(sale)));
   const monthlyExpenses = state.expenses.filter((expense) => sameMonth(expense.date));
   const revenue = completedSales.reduce((total, sale) => total + sale.amount, 0);
   const expenses = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
@@ -171,7 +180,7 @@ function renderDashboard() {
   let highestValue = 1;
   const data = months.map((month) => {
     const inMonth = (date) => { const value = new Date(date); return value.getMonth() === month.getMonth() && value.getFullYear() === month.getFullYear(); };
-    const monthRevenue = state.sales.filter((sale) => sale.status === 'done' && inMonth(sale.date)).reduce((sum, sale) => sum + sale.amount, 0);
+    const monthRevenue = state.sales.filter((sale) => sale.status === 'done' && inMonth(saleRecognitionDate(sale))).reduce((sum, sale) => sum + sale.amount, 0);
     const monthExpenses = state.expenses.filter((expense) => inMonth(expense.date)).reduce((sum, expense) => sum + expense.amount, 0);
     highestValue = Math.max(highestValue, monthRevenue, monthExpenses);
     return { month, revenue: monthRevenue, expenses: monthExpenses };
@@ -191,7 +200,7 @@ function getFilteredSales() {
 }
 
 function getAnalysisSales() {
-  return state.sales.filter((sale) => matchesDateRange(sale.date, document.querySelector('#sales-analysis-range').value, document.querySelector('#sales-date-from').value, document.querySelector('#sales-date-to').value));
+  return state.sales.filter((sale) => matchesDateRange(saleRecognitionDate(sale), document.querySelector('#sales-analysis-range').value, document.querySelector('#sales-date-from').value, document.querySelector('#sales-date-to').value));
 }
 
 function renderSalesAnalysis() {
@@ -545,7 +554,7 @@ async function initialiseCloud() {
 }
 
 const fields = {
-  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['status', 'Status realizacji', 'select'], ['sellingCosts', 'Opłaty i wysyłka po naszej stronie (zł)', 'number']],
+  sale: [['amount', 'Łączna kwota sprzedaży (zł)', 'number'], ['channel', 'Kanał', 'select'], ['date', 'Data sprzedaży', 'date'], ['status', 'Status realizacji', 'select'], ['completedDate', 'Data zakończenia / rozliczenia', 'date'], ['sellingCosts', 'Opłaty i wysyłka po naszej stronie (zł)', 'number']],
   product: [['name', 'Nazwa produktu', 'text', 'full'], ['price', 'Cena sprzedaży (zł)', 'number'], ['weightGrams', 'Zużycie filamentu z odpadami (g/szt.)', 'number'], ['printHours', 'Czas druku (h/szt., np. 1,5)', 'number'], ['filamentPrice', 'Cena filamentu (zł/kg)', 'number'], ['hourlyRate', 'Koszt godziny druku (zł/h)', 'number'], ['extraCost', 'Dodatki i opakowanie (zł/szt.)', 'number']],
   expense: [['name', 'Nazwa kosztu', 'text', 'full'], ['category', 'Kategoria', 'select'], ['amount', 'Kwota (zł)', 'number'], ['date', 'Data', 'date']],
   channel: [['name', 'Nazwa kanału', 'text', 'full'], ['symbol', 'Skrót (1–2 litery)', 'text']]
@@ -569,6 +578,7 @@ function valueFor(field, record) {
   if (field === 'hourlyRate') return 0.60;
   if (field === 'extraCost' || field === 'sellingCosts') return 0;
   if (field === 'date') return iso(now);
+  if (field === 'completedDate') return record?.status === 'done' ? record.date : '';
   if (field === 'qty' || field === 'stock') return 1;
   return '';
 }
@@ -581,7 +591,7 @@ function fieldMarkup([name, label, type, className], record) {
     return `<div class="field ${full}"><label for="field-${name}">${label}</label><select id="field-${name}" name="${name}" required>${placeholder}${options(name).map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value) ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`).join('')}</select></div>`;
   }
   const numberOptions = name === 'stock' ? 'min="0" step="1"' : type === 'number' ? 'min="0" step="0.01"' : '';
-  return `<div class="field ${full}"><label for="field-${name}">${label}</label><input id="field-${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${numberOptions} ${['weightGrams', 'printHours', 'filamentPrice'].includes(name) ? '' : 'required'} /></div>`;
+  return `<div class="field ${full}"><label for="field-${name}">${label}</label><input id="field-${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${numberOptions} ${['weightGrams', 'printHours', 'filamentPrice', 'completedDate'].includes(name) ? '' : 'required'} /></div>`;
 }
 
 function saleItemMarkup(item = {}) {
@@ -623,7 +633,7 @@ function openDetails(type, id) {
     content = `<div class="detail-prices">${profitCards}</div><p class="form-hint">Przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p><h3>Parametry druku</h3><dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', record.filamentPrice == null ? '—' : moneyExact(record.filamentPrice) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl>`;
   } else {
     const items = costedSaleItems(record);
-    content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
+    content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${record.status === 'done' ? detail('Data rozliczenia', escapeHtml(saleRecognitionDate(record)) + (record.completedDate ? '' : ' (brak zapisanej daty zakończenia)')) : ''}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
   }
   root.querySelector('#modal-fields').className = 'detail-content';
   root.querySelector('#modal-fields').innerHTML = content;
@@ -650,6 +660,21 @@ function openModal(type, id = null) {
   root.querySelector('#modal-kicker').textContent = editing ? 'EDYCJA' : type === 'sale' ? 'NOWE ZAMÓWIENIE' : 'NOWY WPIS';
   const formFields = root.querySelector('#modal-fields');
   formFields.innerHTML = `${type === 'sale' ? '<div class="field full"><label>Produkty w sprzedaży</label><div id="sale-items" class="sale-items"></div><button type="button" id="add-sale-item" class="add-sale-item">+ Dodaj kolejny produkt</button></div>' : ''}${fields[type].map((field) => fieldMarkup(field, record)).join('')}${type === 'product' ? productChannelPricesMarkup(record) : ''}`;
+
+  if (type === 'sale') {
+    const status = root.querySelector('#field-status');
+    const completedDate = root.querySelector('#field-completedDate');
+    const dateField = completedDate.closest('.field');
+    const updateCompletion = (changed = false) => {
+      const done = status.value === 'done';
+      dateField.hidden = !done;
+      completedDate.required = done;
+      if (done && changed && !completedDate.value) completedDate.value = localDateToday();
+    };
+    status.addEventListener('change', () => updateCompletion(true));
+    updateCompletion();
+    dateField.insertAdjacentHTML('beforeend', '<p class="form-hint">Przychód i zysk trafiają do miesiąca zakończenia. W starszych wpisach sprawdź tę datę — wcześniej nie była zapisywana.</p>');
+  }
 
   if (type === 'product' || type === 'sale') {
     formFields.insertAdjacentHTML('beforeend', '<div id="cost-preview" class="cost-preview field full" aria-live="polite"></div>');
@@ -722,6 +747,11 @@ function openModal(type, id = null) {
       value.amount = Number(value.amount);
       value.items = items;
       value.shipped = ['shipped', 'done'].includes(value.status);
+      value.completedDate = value.status === 'done' ? (value.completedDate || localDateToday()) : '';
+      if (value.completedDate && value.completedDate < value.date) {
+        alert('Data zakończenia nie może być wcześniejsza niż data sprzedaży.');
+        return;
+      }
       if (editing) Object.assign(record, value); else state.sales.unshift(value);
     }
     if (type === 'product') {

@@ -14,7 +14,7 @@ test('only completed sales contribute to revenue, profit, charts and channel rev
     channels: [{ name: 'Paid', symbol: 'P' }, { name: 'Pending', symbol: 'N' }],
   };
   const context = vm.createContext({ state, now: new Date('2026-10-22T12:00:00Z'), document: { querySelector: node }, renderProfitSummary: () => {}, sameMonth: () => true, money: String, moneyExact: String, saleItems: () => [{ qty: 1 }], salesRows: () => '', escapeHtml: String, getAnalysisSales: () => state.sales, rangeLabels: { month: 'Ten miesiąc' } });
-  vm.runInContext(source.slice(source.indexOf('function renderDashboard()'), source.indexOf('function getFilteredSales()')) + source.slice(source.indexOf('function renderSalesAnalysis()'), source.indexOf('function renderSales()')), context);
+  vm.runInContext(source.slice(source.indexOf('function saleRecognitionDate('), source.indexOf('function getFilteredSales()')) + source.slice(source.indexOf('function renderSalesAnalysis()'), source.indexOf('function renderSales()')), context);
   const render = () => vm.runInContext('renderDashboard(); renderSalesAnalysis();', context);
   render();
   assert.equal(node('#metric-revenue').textContent, '100');
