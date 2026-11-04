@@ -59,11 +59,11 @@
           <button class="nav-item active" data-view="dashboard" data-tooltip="Pulpit" aria-label="Pulpit"><svg><use href="#icon-grid"/></svg><span>Pulpit</span></button>
           <button class="nav-item" data-view="sales" data-tooltip="Sprzedaż" aria-label="Sprzedaż"><svg><use href="#icon-receipt"/></svg><span>Sprzedaż</span></button>
           <button class="nav-item" data-view="inventory" data-tooltip="Produkty" aria-label="Produkty"><svg><use href="#icon-box"/></svg><span>Produkty</span></button>
-          <button class="nav-item" data-view="expenses" data-tooltip="Koszty" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Koszty</span></button>
+          <button class="nav-item" data-view="expenses" data-tooltip="Koszty" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Wydatki</span></button>
           <button class="nav-item" data-view="channels" data-tooltip="Kanały sprzedaży" aria-label="Kanały sprzedaży"><svg><use href="#icon-store"/></svg><span>Kanały</span></button>
         </nav>
         <div class="sidebar-bottom">
-          <div class="month-card"><span class="eyebrow" id="sidebar-month"></span><strong id="sidebar-profit">0 zł</strong><span>zysku w tym miesiącu</span></div>
+          <div class="month-card"><span class="eyebrow" id="sidebar-month"></span><strong id="sidebar-profit">0 zł</strong><span>bilansu w tym miesiącu</span></div>
           <button class="settings" data-view="settings" data-tooltip="Ustawienia" aria-label="Ustawienia"><svg><use href="#icon-settings"/></svg><span>Ustawienia</span></button>
         </div>
       </aside>
@@ -77,13 +77,13 @@
         <section id="dashboard" class="view active-view">
           <div class="section-heading"><div><h2>Przegląd miesiąca</h2><p>Jak idzie Twoja sprzedaż wydruków 3D.</p></div><button class="primary-button" data-action="new-sale">+ Dodaj sprzedaż</button></div>
           <div class="metrics-grid">
-            <article class="metric-card income"><div class="metric-label"><span>Przychód</span><i><svg><use href="#icon-trend-up"/></svg></i></div><strong id="metric-revenue">0 zł</strong><p id="metric-revenue-note">Brak sprzedaży w tym miesiącu</p></article>
-            <article class="metric-card"><div class="metric-label"><span>Koszty</span><i><svg><use href="#icon-trend-down"/></svg></i></div><strong id="metric-expenses">0 zł</strong><p id="metric-expenses-note">Dodaj pierwszy koszt</p></article>
-            <article class="metric-card profit"><div class="metric-label"><span>Zysk</span><i><svg><use href="#icon-spark"/></svg></i></div><strong id="metric-profit">0 zł</strong><p id="metric-profit-note">Wpływy według daty zakończenia minus wpisane wydatki</p></article>
-            <article class="metric-card"><div class="metric-label"><span>Sprzedane sztuki</span><i><svg><use href="#icon-box"/></svg></i></div><strong id="metric-units">0</strong><p id="metric-units-note">w tym miesiącu</p></article>
+            <article class="metric-card income"><div class="metric-label"><span>Przychód</span><i><svg><use href="#icon-trend-up"/></svg></i></div><strong id="metric-revenue">0 zł</strong><p id="metric-revenue-note">Brak sprzedaży zakończone w tym miesiącu</p></article>
+            <article class="metric-card"><div class="metric-label"><span>Wydatki</span><i><svg><use href="#icon-trend-down"/></svg></i></div><strong id="metric-expenses">0 zł</strong><p id="metric-expenses-note">Dodaj pierwszy koszt</p></article>
+            <article class="metric-card profit"><div class="metric-label"><span>Bilans wpływów i wydatków</span><i><svg><use href="#icon-spark"/></svg></i></div><strong id="metric-profit">0 zł</strong><p id="metric-profit-note">Wpływy według daty zakończenia minus wpisane wydatki</p></article>
+            <article class="metric-card"><div class="metric-label"><span>Sprzedane sztuki</span><i><svg><use href="#icon-box"/></svg></i></div><strong id="metric-units">0</strong><p id="metric-units-note">zakończone w tym miesiącu</p></article>
           </div>
           <div class="dashboard-grid">
-            <section class="panel chart-panel"><div class="panel-header"><div><h3>Przychody i koszty</h3><p>Ostatnie 6 miesięcy</p></div><span class="legend"><i></i> Przychód <i class="cost"></i> Koszty</span></div><div class="chart" id="chart"></div><div class="chart-months" id="chart-months"></div></section>
+            <section class="panel chart-panel"><div class="panel-header"><div><h3>Wpływy i wydatki</h3><p>Ostatnie 6 miesięcy</p></div><span class="legend"><i></i> Przychód <i class="cost"></i> Koszty</span></div><div class="chart" id="chart"></div><div class="chart-months" id="chart-months"></div></section>
             <section class="panel channel-panel"><div class="panel-header"><div><h3>Sprzedaż według kanału</h3><p>Ten miesiąc</p></div></div><div id="channel-breakdown" class="channel-breakdown"></div></section>
           </div>
           <section class="panel recent-panel"><div class="panel-header"><div><h3>Ostatnia sprzedaż</h3><p>Twoje najnowsze zamówienia</p></div><button class="text-button" data-view="sales">Zobacz wszystkie →</button></div><div id="recent-sales" class="table-wrap"></div></section>
@@ -91,9 +91,9 @@
 
         <section id="sales" class="view">
           <div class="section-heading"><div><h2>Sprzedaż</h2><p>Każde zamówienie w jednym miejscu.</p></div><button class="primary-button" data-action="new-sale">+ Dodaj sprzedaż</button></div>
-          <section class="panel analysis-panel"><div class="panel-header"><div><h3>Analiza sprzedaży</h3><p id="sales-analysis-description">Ten miesiąc</p></div><div class="analysis-controls"><select id="sales-analysis-range"><option value="month">Ten miesiąc</option><option value="year">Ten rok</option><option value="custom">Własny zakres dat</option></select><div id="sales-custom-range" class="date-range" hidden><input id="sales-date-from" type="date" aria-label="Data od" /><span>—</span><input id="sales-date-to" type="date" aria-label="Data do" /></div></div></div><div class="analysis-metrics"><div><span>Przychód (zakończone)</span><strong id="analysis-revenue">0 zł</strong></div><div><span>Zamówienia</span><strong id="analysis-orders">0</strong></div><div><span>Sprzedane sztuki</span><strong id="analysis-units">0</strong></div><div><span>Śr. zakończonego zamówienia</span><strong id="analysis-average">0 zł</strong></div><div><span>Wartość sprzedaży (bez anulowanych)</span><strong id="analysis-sales-value">0 zł</strong></div><div class="analysis-pending"><span>Wartość zamówień w toku · wszystkie miesiące</span><strong id="analysis-pending-value">0 zł</strong></div></div></section>
-          <section class="panel profitability-strip"><div><span>Koszt zakończonych zamówień</span><strong id="analysis-sales-cost">—</strong></div><div><span>Zysk ze sprzedaży</span><strong id="analysis-sales-profit">—</strong></div><div><span>Marża w okresie</span><strong id="analysis-sales-margin">—</strong></div><p id="analysis-sales-margin-note"></p></section>
-          <div class="toolbar"><div class="search"><svg><use href="#icon-search"/></svg><input id="sales-search" placeholder="Szukaj produktu" /></div><select id="sales-status-filter"><option value="all">Wszystkie statusy</option><option value="new">Nowe</option><option value="processing">W realizacji</option><option value="shipped">Wysłane</option><option value="done">Zakończone</option><option value="cancelled">Anulowane</option></select></div>
+          <section class="panel analysis-panel"><div class="panel-header"><div><h3>Analiza sprzedaży</h3><p id="sales-analysis-description">Ten miesiąc</p></div><div class="analysis-controls"><select id="sales-analysis-range"><option value="month">Ten miesiąc</option><option value="year">Ten rok</option><option value="custom">Własny zakres dat</option></select><div id="sales-custom-range" class="date-range" hidden><input id="sales-date-from" type="date" aria-label="Data od" /><span>—</span><input id="sales-date-to" type="date" aria-label="Data do" /></div></div></div><div class="analysis-metrics"><div><span>Przychód (zakończone)</span><strong id="analysis-revenue">0 zł</strong></div><div><span>Zamówienia złożone (bez anulowanych)</span><strong id="analysis-orders">0</strong></div><div><span>Sztuki rozliczone w okresie</span><strong id="analysis-units">0</strong></div><div><span>Śr. zakończonego zamówienia</span><strong id="analysis-average">0 zł</strong></div><div><span>Wartość złożonych zamówień (bez anulowanych)</span><strong id="analysis-sales-value">0 zł</strong></div><div class="analysis-pending"><span>Wartość zamówień w toku · wszystkie miesiące</span><strong id="analysis-pending-value">0 zł</strong></div></div></section>
+          <p class="form-hint">Zamówienia i ich wartość: data złożenia. Przychód, rozliczone sztuki i zysk: data zakończenia. Lista poniżej ma osobny wybór podstawy daty.</p><section class="panel profitability-strip"><div><span>Koszt zakończonych zamówień</span><strong id="analysis-sales-cost">—</strong></div><div><span>Zysk ze sprzedaży</span><strong id="analysis-sales-profit">—</strong></div><div><span>Marża w okresie</span><strong id="analysis-sales-margin">—</strong></div><p id="analysis-sales-margin-note"></p></section>
+          <div class="toolbar sales-toolbar"><label class="sales-basis">Lista w wybranym okresie<select id="sales-list-basis"><option value="ordered">Zamówienia według daty złożenia</option><option value="settled">Zakończone według daty rozliczenia</option></select></label><div class="search"><svg><use href="#icon-search"/></svg><input id="sales-search" placeholder="Szukaj produktu" /></div><select id="sales-status-filter"><option value="all">Wszystkie statusy</option><option value="new">Nowe</option><option value="processing">W realizacji</option><option value="shipped">Wysłane</option><option value="done">Zakończone</option><option value="cancelled">Anulowane</option></select></div>
           <section class="panel"><div id="sales-table" class="table-wrap"></div></section>
         </section>
 
@@ -135,7 +135,7 @@
       <button class="nav-item active" data-view="dashboard" aria-label="Pulpit"><svg><use href="#icon-grid"/></svg><span>Pulpit</span></button>
       <button class="nav-item" data-view="sales" aria-label="Sprzedaż"><svg><use href="#icon-receipt"/></svg><span>Sprzedaż</span></button>
       <button class="nav-item" data-view="inventory" aria-label="Produkty"><svg><use href="#icon-box"/></svg><span>Produkty</span></button>
-      <button class="nav-item" data-view="expenses" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Koszty</span></button>
+      <button class="nav-item" data-view="expenses" aria-label="Koszty"><svg><use href="#icon-wallet"/></svg><span>Wydatki</span></button>
       <button class="nav-item" data-view="channels" aria-label="Kanały"><svg><use href="#icon-store"/></svg><span>Kanały</span></button>
     </nav>
 

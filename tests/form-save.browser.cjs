@@ -56,7 +56,7 @@ test('one click saves each form after a background refresh, on desktop and mobil
       await page.locator('[data-view-sale="1"]:visible').click();
       assert.equal(await page.locator('.modal input, .modal select').count(), 0);
       assert.match(await page.locator('.detail-content').innerText(), /Marża: 84,1%/);
-      assert.doesNotMatch(await page.locator('.detail-content').innerText(), /Szacunek według aktualnych/);
+      assert.match(await page.locator('.detail-content').innerText(), /Szacunek według aktualnych/);
       assert.equal(await page.evaluate(() => JSON.stringify(state)), before);
       await page.getByRole('button', {name: 'Edytuj', exact: true}).last().click();
       assert.equal(await page.locator('#field-amount').count(), 1);

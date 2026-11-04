@@ -11,8 +11,8 @@ let cloudSyncPromise = null;
 let cloudRefreshInFlight = false;
 let hasUnsyncedChanges = false;
 let cloudRetryAttempt = 0;
-const now = new Date();
-const iso = (date) => new Date(date).toISOString().slice(0, 10);
+let now = new Date();
+const iso = (date) => { const value = new Date(date); return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`; };
 const defaultState = {
   sales: [
     { id: 1, product: 'Organizer na biurko', qty: 2, amount: 78, channel: 'Etsy', status: 'shipped', date: iso(now), shipped: true },
@@ -48,7 +48,7 @@ function save() {
   queueCloudSync();
 }
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-const sameMonth = (date) => { const value = new Date(date); return value.getMonth() === now.getMonth() && value.getFullYear() === now.getFullYear(); };
+const sameMonth = (date) => String(date).slice(0, 7) === iso(now).slice(0, 7);
 const statusNames = { new: 'Nowe', processing: 'W realizacji', shipped: 'Wysłane', done: 'Zakończone', cancelled: 'Anulowane' };
 const rangeLabels = { month: 'Ten miesiąc', 'last-30': 'Ostatnie 30 dni', year: 'Ten rok', custom: 'Własny zakres dat' };
 const fulfillmentText = (sale) => statusNames[sale.status] || statusNames.new;
@@ -105,7 +105,7 @@ function profitabilityMarkup(sale, { showCost = true } = {}) {
   const result = saleProfit(sale);
   if (!result) return '<span class="muted">Uzupełnij parametry kosztów produktu</span>';
   const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-  return `<div class="cost-summary">${showCost ? `<span>Koszt: ${moneyExact(result.cost)}</span>` : ''}<strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span></div>`;
+  return `<div class="cost-summary">${showCost ? `<span>Koszt: ${moneyExact(result.cost)}</span>` : ''}<strong>${sale.status && sale.status !== 'done' ? 'Prognoza zysku' : 'Zysk'}: ${moneyExact(result.profit)}</strong><span>Marża: ${margin}</span>${result.estimated ? '<span class="cost-estimate">Szacunek według aktualnych kosztów produktu — brak zatwierdzonego kosztu historycznego.</span>' : ''}</div>`;
 }
 
 function salesProfitSummary(sales) {
@@ -113,10 +113,11 @@ function salesProfitSummary(sales) {
   const results = completed.map(saleProfit);
   const missing = results.filter((result) => result === null).length;
   const revenue = completed.reduce((sum, sale) => sum + Number(sale.amount), 0);
-  if (missing) return { revenue, cost: null, profit: null, margin: null, missing };
+  const estimated = results.filter((result) => result?.estimated).length;
+  if (missing) return { revenue, cost: null, profit: null, margin: null, missing, estimated };
   const cost = results.reduce((sum, result) => sum + result.cost, 0);
   const profit = revenue - cost;
-  return { revenue, cost, profit, margin: revenue > 0 ? profit / revenue * 100 : null, missing: 0 };
+  return { revenue, cost, profit, margin: revenue > 0 ? profit / revenue * 100 : null, missing: 0, estimated };
 }
 
 function renderProfitSummary(prefix, sales) {
@@ -124,14 +125,14 @@ function renderProfitSummary(prefix, sales) {
   document.querySelector(`#${prefix}-cost`).textContent = summary.cost === null ? '—' : moneyExact(summary.cost);
   document.querySelector(`#${prefix}-profit`).textContent = summary.profit === null ? '—' : moneyExact(summary.profit);
   document.querySelector(`#${prefix}-margin`).textContent = summary.margin === null ? '—' : `${summary.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-  document.querySelector(`#${prefix}-margin-note`).textContent = summary.missing ? `Uzupełnij koszty produktów w ${summary.missing} zakończonych zamówieniach.` : 'Zakończone zamówienia · łączny zysk ÷ łączny przychód';
+  document.querySelector(`#${prefix}-margin-note`).textContent = summary.missing ? `Uzupełnij koszty produktów w ${summary.missing} zakończonych zamówieniach.` : summary.estimated ? `Wynik szacunkowy: ${summary.estimated} zamówień bez zatwierdzonych kosztów historycznych.` : 'Zakończone zamówienia · według daty rozliczenia · łączny zysk ÷ łączny przychód';
 }
 
 function salesRows(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
   return `<table><thead><tr><th>PRODUKTY</th><th>KANAŁ</th><th>DATA</th><th>KWOTA</th><th>ZYSK I MARŻA</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale, { showCost: false })}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
+    return `<tr><td><div class="sale-products">${products}</div></td><td>${escapeHtml(sale.channel)}</td><td>${new Date(`${sale.date}T00:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</td><td>${moneyExact(sale.amount)}</td><td>${profitabilityMarkup(sale, { showCost: false })}</td><td><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></td><td><div class="row-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
@@ -139,7 +140,7 @@ function salesCards(sales) {
   if (!sales.length) return '<div class="empty">Nie ma jeszcze żadnej sprzedaży.</div>';
   return sales.map((sale) => {
     const products = saleItems(sale).map((item) => `<span>${escapeHtml(item.product)} <b>× ${item.qty}</b></span>`).join('');
-    const date = new Date(sale.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    const date = new Date(`${sale.date}T00:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
     return `<article class="sales-mobile-card"><div class="sales-mobile-card-top"><div class="sale-products">${products}</div><strong>${moneyExact(sale.amount)}</strong></div><div class="sales-mobile-meta"><span>${escapeHtml(sale.channel)}</span><span>${date}</span><span class="status status-${sale.status}">${fulfillmentText(sale)}</span></div>${profitabilityMarkup(sale, { showCost: false })}<div class="sales-mobile-actions"><button class="row-edit" data-view-sale="${sale.id}">Podgląd</button><button class="row-edit" data-edit-sale="${sale.id}">Edytuj</button><button class="row-delete" data-delete-sale="${sale.id}">Usuń</button></div></article>`;
   }).join('');
 }
@@ -158,12 +159,11 @@ function localDateToday() {
 }
 
 function renderDashboard() {
-  const monthlySales = state.sales.filter((sale) => sameMonth(sale.date));
   const completedSales = state.sales.filter((sale) => sale.status === 'done' && sameMonth(saleRecognitionDate(sale)));
   const monthlyExpenses = state.expenses.filter((expense) => sameMonth(expense.date));
   const revenue = completedSales.reduce((total, sale) => total + sale.amount, 0);
   const expenses = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
-  const units = monthlySales.reduce((total, sale) => total + saleItems(sale).reduce((sum, item) => sum + Number(item.qty), 0), 0);
+  const units = completedSales.reduce((total, sale) => total + saleItems(sale).reduce((sum, item) => sum + Number(item.qty), 0), 0);
   const profit = revenue - expenses;
 
   document.querySelector('#metric-revenue').textContent = money(revenue);
@@ -179,7 +179,7 @@ function renderDashboard() {
   const months = Array.from({ length: 6 }, (_, index) => new Date(now.getFullYear(), now.getMonth() - 5 + index, 1));
   let highestValue = 1;
   const data = months.map((month) => {
-    const inMonth = (date) => { const value = new Date(date); return value.getMonth() === month.getMonth() && value.getFullYear() === month.getFullYear(); };
+    const inMonth = (date) => String(date).slice(0, 7) === iso(month).slice(0, 7);
     const monthRevenue = state.sales.filter((sale) => sale.status === 'done' && inMonth(saleRecognitionDate(sale))).reduce((sum, sale) => sum + sale.amount, 0);
     const monthExpenses = state.expenses.filter((expense) => inMonth(expense.date)).reduce((sum, expense) => sum + expense.amount, 0);
     highestValue = Math.max(highestValue, monthRevenue, monthExpenses);
@@ -193,36 +193,42 @@ function renderDashboard() {
   document.querySelector('#channel-breakdown').innerHTML = channelTotals.length ? channelTotals.map((channel) => `<div class="channel-row"><i class="channel-icon">${escapeHtml(channel.symbol)}</i><div><b>${escapeHtml(channel.name)}</b><div class="progress"><i style="width:${channel.value / topChannel * 100}%"></i></div></div><strong>${money(channel.value)}</strong></div>`).join('') : '<p class="muted">Dodaj pierwszy kanał.</p>';
 }
 
+function salesDateMatches(date) {
+  return matchesDateRange(date, document.querySelector('#sales-analysis-range').value, document.querySelector('#sales-date-from').value, document.querySelector('#sales-date-to').value);
+}
+
 function getFilteredSales() {
   const query = document.querySelector('#sales-search').value.toLowerCase();
   const status = document.querySelector('#sales-status-filter').value;
-  return state.sales.filter((sale) => (status === 'all' || sale.status === status) && saleItems(sale).some((item) => item.product.toLowerCase().includes(query))).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const settled = document.querySelector('#sales-list-basis').value === 'settled';
+  return state.sales.filter((sale) => (!settled || sale.status === 'done') && salesDateMatches(settled ? saleRecognitionDate(sale) : sale.date) && (status === 'all' || sale.status === status) && saleItems(sale).some((item) => item.product.toLowerCase().includes(query))).sort((a, b) => new Date(settled ? saleRecognitionDate(b) : b.date) - new Date(settled ? saleRecognitionDate(a) : a.date));
 }
 
-function getAnalysisSales() {
-  return state.sales.filter((sale) => matchesDateRange(saleRecognitionDate(sale), document.querySelector('#sales-analysis-range').value, document.querySelector('#sales-date-from').value, document.querySelector('#sales-date-to').value));
+function getAnalysisSales(basis = 'settled') {
+  return state.sales.filter((sale) => basis === 'ordered' ? sale.status !== 'cancelled' && salesDateMatches(sale.date) : sale.status === 'done' && salesDateMatches(saleRecognitionDate(sale)));
 }
 
 function renderSalesAnalysis() {
   const sales = getAnalysisSales();
   const completedSales = sales.filter((sale) => sale.status === 'done');
   renderProfitSummary('analysis-sales', sales);
+  const orderedSales = getAnalysisSales('ordered');
   const pendingStatuses = new Set(['new', 'processing', 'shipped']);
   const revenue = completedSales.reduce((sum, sale) => sum + sale.amount, 0);
-  const units = sales.reduce((sum, sale) => sum + saleItems(sale).reduce((itemSum, item) => itemSum + Number(item.qty), 0), 0);
-  const salesValue = sales.filter((sale) => sale.status !== 'cancelled').reduce((sum, sale) => sum + sale.amount, 0);
+  const units = completedSales.reduce((sum, sale) => sum + saleItems(sale).reduce((itemSum, item) => itemSum + Number(item.qty), 0), 0);
+  const salesValue = orderedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const pendingValue = state.sales.filter((sale) => pendingStatuses.has(sale.status)).reduce((sum, sale) => sum + sale.amount, 0);
   const range = document.querySelector('#sales-analysis-range').value;
   const from = document.querySelector('#sales-date-from').value;
   const to = document.querySelector('#sales-date-to').value;
   document.querySelector('#analysis-revenue').textContent = moneyExact(revenue);
-  document.querySelector('#analysis-orders').textContent = sales.length;
+  document.querySelector('#analysis-orders').textContent = orderedSales.length;
   document.querySelector('#analysis-units').textContent = units;
   document.querySelector('#analysis-average').textContent = moneyExact(completedSales.length ? revenue / completedSales.length : 0);
   document.querySelector('#analysis-sales-value').textContent = moneyExact(salesValue);
   document.querySelector('#analysis-pending-value').textContent = moneyExact(pendingValue);
   const rangeLabel = range.startsWith('calendar-month:') ? calendarMonthLabel(range.slice('calendar-month:'.length)) : rangeLabels[range];
-  document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(from).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(to).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
+  document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(`${from}T00:00:00`).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(`${to}T00:00:00`).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
 }
 
 function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); }
@@ -355,7 +361,7 @@ function renderExpenses() {
   const expenses = getFilteredExpenses();
   document.querySelector('#total-expenses').textContent = moneyExact(total);
   document.querySelector('#monthly-expenses').textContent = moneyExact(monthly);
-  document.querySelector('#expenses-table').innerHTML = expenses.length ? `<table><thead><tr><th>NAZWA KOSZTU</th><th>KATEGORIA</th><th>DATA</th><th>KWOTA</th><th></th></tr></thead><tbody>${expenses.map((expense) => `<tr><td>${escapeHtml(expense.name)}</td><td>${escapeHtml(expense.category)}</td><td>${new Date(expense.date).toLocaleDateString('pl-PL')}</td><td>${moneyExact(expense.amount)}</td><td><div class="row-actions"><button class="row-edit" data-edit-expense="${expense.id}">Edytuj</button><button class="row-delete" data-delete-expense="${expense.id}">Usuń</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Brak kosztów spełniających wybrane filtry.</div>';
+  document.querySelector('#expenses-table').innerHTML = expenses.length ? `<table><thead><tr><th>NAZWA KOSZTU</th><th>KATEGORIA</th><th>DATA</th><th>KWOTA</th><th></th></tr></thead><tbody>${expenses.map((expense) => `<tr><td>${escapeHtml(expense.name)}</td><td>${escapeHtml(expense.category)}</td><td>${new Date(`${expense.date}T00:00:00`).toLocaleDateString('pl-PL')}</td><td>${moneyExact(expense.amount)}</td><td><div class="row-actions"><button class="row-edit" data-edit-expense="${expense.id}">Edytuj</button><button class="row-delete" data-delete-expense="${expense.id}">Usuń</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Brak kosztów spełniających wybrane filtry.</div>';
 }
 
 function renderChannels() {
@@ -682,7 +688,13 @@ function openModal(type, id = null) {
   const readItems = () => [...modal.querySelectorAll('.sale-item-row')].map((row) => {
     const product = row.querySelector('.sale-product').value;
     const previous = row.dataset.unitCost === undefined ? null : { product: row.dataset.costProduct, unitCost: Number(row.dataset.unitCost) };
-    return snapshotSaleItem(product, row.querySelector('.sale-qty').value, previous);
+    const item = snapshotSaleItem(product, row.querySelector('.sale-qty').value, previous);
+    if (editing && (!previous || previous.product !== product) && !root.querySelector('#confirm-historical-costs')?.checked) item.unitCost = null;
+    else if (editing && (!previous || previous.product !== product)) {
+      const input = row.querySelector('.historical-unit-cost');
+      item.unitCost = input ? (input.value.trim() === '' ? null : Number(input.value)) : item.unitCost;
+    }
+    return item;
   }).filter((item) => item.product && item.qty > 0);
   const updateCostPreview = () => {
     const preview = root.querySelector('#cost-preview');
@@ -691,7 +703,7 @@ function openModal(type, id = null) {
       const cost = productionCost(Object.fromEntries(new FormData(modal)));
       preview.innerHTML = `<strong>Koszt produkcji / szt.: ${cost === null ? 'uzupełnij parametry' : moneyExact(cost)}</strong><p class="form-hint">Stawka 0,60 zł/h: szacunkowo 0,15 zł prądu + 0,45 zł zużycia Bambu Lab A1. Możesz ją zmienić. Czas 1,5 h oznacza 1 godz. 30 min. Gramatura powinna uwzględniać podpory i odpady.</p>`;
     } else {
-      preview.innerHTML = profitabilityMarkup({ status: root.querySelector('#field-status').value, amount: root.querySelector('#field-amount').value, sellingCosts: root.querySelector('#field-sellingCosts').value, items: readItems() }) + '<p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Przy niezakończonym zamówieniu jest prognozą. Nie dodawaj ponownie opakowania uwzględnionego w produkcie. Brak historycznych kosztów można uzupełnić, zapisując sprzedaż po uzupełnieniu produktu.</p>';
+      preview.innerHTML = profitabilityMarkup({ status: root.querySelector('#field-status').value, amount: root.querySelector('#field-amount').value, sellingCosts: root.querySelector('#field-sellingCosts').value, items: readItems() }) + '<p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Przy niezakończonym zamówieniu jest prognozą. Nie dodawaj ponownie opakowania uwzględnionego w produkcie. Brakujące koszty historyczne wymagają osobnego zatwierdzenia poniżej.</p>';
     }
   };
   modal.addEventListener('input', updateCostPreview);
@@ -701,11 +713,17 @@ function openModal(type, id = null) {
     const list = root.querySelector('#sale-items');
     const addItem = (item) => {
       list.insertAdjacentHTML('beforeend', saleItemMarkup(item));
-      if (typeof item.unitCost === 'number') {
+      if (typeof item.unitCost === 'number' && Number.isFinite(item.unitCost) && item.unitCost >= 0) {
         list.lastElementChild.dataset.costProduct = item.product;
         list.lastElementChild.dataset.unitCost = String(item.unitCost);
+      } else if (editing) {
+        const estimate = productionCost(state.products.find((product) => product.name === item.product));
+        list.lastElementChild.insertAdjacentHTML('beforeend', `<label class="historical-cost">Koszt historyczny / szt. (zł)<input class="historical-unit-cost" type="number" min="0" step="any" value="${estimate ?? ''}" /></label>`);
       }
     };
+    if (editing) {
+      list.insertAdjacentHTML('afterend', '<label class="historical-confirm"><input type="checkbox" id="confirm-historical-costs" /> Zatwierdź wpisane koszty historyczne przy zapisie</label><p class="form-hint">Dla pozycji bez zapisanego kosztu podpowiadamy aktualny koszt produktu. Możesz wpisać rzeczywisty koszt jednej sztuki. Bez zaznaczenia wynik pozostanie szacunkiem.</p>');
+    }
     (record ? saleItems(record) : [{}]).forEach(addItem);
     let manualAmount = editing;
     root.querySelector('#field-amount').addEventListener('input', (event) => { manualAmount = event.target.value.trim() !== ''; });
@@ -743,6 +761,7 @@ function openModal(type, id = null) {
       const items = readItems();
       value.sellingCosts = Number(value.sellingCosts);
       if (!items.length) return;
+      if (root.querySelector('#confirm-historical-costs')?.checked && items.some((item) => item.unitCost === null || !Number.isFinite(item.unitCost) || item.unitCost < 0)) { alert('Uzupełnij poprawny koszt historyczny każdej pozycji przed zatwierdzeniem.'); return; }
       value.id = editing ? record.id : Date.now();
       value.amount = Number(value.amount);
       value.items = items;
@@ -842,9 +861,10 @@ function addRecentCalendarMonths() {
   salesAnalysisRange.value = [...salesAnalysisRange.options].some((option) => option.value === selected) ? selected : 'month';
 }
 function toggleSalesCustomRange() { salesCustomRange.hidden = salesAnalysisRange.value !== 'custom'; }
-salesAnalysisRange.onchange = () => { toggleSalesCustomRange(); renderSalesAnalysis(); };
-document.querySelector('#sales-date-from').onchange = renderSalesAnalysis;
-document.querySelector('#sales-date-to').onchange = renderSalesAnalysis;
+salesAnalysisRange.onchange = () => { toggleSalesCustomRange(); renderSales(); };
+document.querySelector('#sales-date-from').onchange = renderSales;
+document.querySelector('#sales-date-to').onchange = renderSales;
+document.querySelector('#sales-list-basis').onchange = renderSales;
 
 const expensePeriodFilter = document.querySelector('#expense-period-filter');
 const expenseCustomRange = document.querySelector('#expense-custom-range');
@@ -952,9 +972,9 @@ mobileThemeToggle.onclick = () => {
 mobileViewport.addEventListener('change', applyTheme);
 applyTheme();
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refreshCloudState();
+  if (document.visibilityState === 'visible') { refreshCalendarContext(); refreshCloudState(); }
 });
-window.addEventListener('focus', () => { addRecentCalendarMonths(); refreshCloudState(); });
+window.addEventListener('focus', () => { refreshCalendarContext(); refreshCloudState(); });
 window.addEventListener('online', () => {
   if (hasUnsyncedChanges) {
     setSyncStatus('Połączenie odzyskane. Wysyłanie zapisanych zmian…');
@@ -966,6 +986,14 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
   if (hasUnsyncedChanges) setSyncStatus('Zmiana zapisana w telefonie. Czeka na połączenie z internetem.');
 });
+function refreshCalendarContext() {
+  now = new Date();
+  addRecentCalendarMonths();
+  renderAll();
+}
+setInterval(() => {
+  if (iso(now) !== localDateToday()) refreshCalendarContext();
+}, 30000);
 addRecentCalendarMonths();
 toggleSalesCustomRange();
 toggleExpenseCustomRange();
