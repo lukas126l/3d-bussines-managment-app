@@ -236,6 +236,20 @@ function calculatePriceFloor(cost, targetMargin, extraCost = 0, feePercent = 0, 
   return { minimum, breakEven, profit, margin: offer > 0 ? profit / offer * 100 : null, acceptable: offer >= minimum && offer > 0 };
 }
 
+function calculateBasketTotals(items, channel = '') {
+  if (!items.length) return null;
+  let cost = 0;
+  let catalogPrice = 0;
+  for (const { product, qty } of items) {
+    const unitCost = productionCost(product);
+    const price = Number(product?.channelPrices?.[channel] ?? product?.price ?? 0);
+    if (!product || unitCost === null || !Number.isInteger(qty) || qty < 1 || !Number.isFinite(price) || price < 0) return null;
+    cost += unitCost * qty;
+    catalogPrice += price * qty;
+  }
+  return Number.isFinite(cost) && Number.isFinite(catalogPrice) ? { cost, catalogPrice } : null;
+}
+
 function showInventoryTab(tab) {
   document.querySelector('#inventory-grid').hidden = tab === 'calculator';
   document.querySelector('#pricing-calculator').hidden = tab !== 'calculator';
@@ -243,20 +257,22 @@ function showInventoryTab(tab) {
 }
 
 function renderPricingCalculator() {
-  const productSelect = document.querySelector('#pricing-product');
+  const itemsRoot = document.querySelector('#pricing-items');
   const channelSelect = document.querySelector('#pricing-channel');
-  const oldProduct = productSelect.value;
-  productSelect.innerHTML = state.products.length ? state.products.map((product) => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`).join('') : '<option value="">Najpierw dodaj produkt</option>';
-  if (state.products.some((product) => String(product.id) === oldProduct)) productSelect.value = oldProduct;
-  const selectedProduct = () => state.products.find((product) => String(product.id) === productSelect.value);
+  const previousItems = [...itemsRoot.querySelectorAll('.pricing-item')].map((row) => ({ id: row.querySelector('select').value, qty: row.querySelector('input').value }));
+  const readItems = () => [...itemsRoot.querySelectorAll('.pricing-item')].map((row) => ({
+    product: state.products.find((product) => String(product.id) === row.querySelector('select').value),
+    qty: row.querySelector('input').value.trim() === '' ? NaN : Number(row.querySelector('input').value)
+  }));
+  const totals = () => calculateBasketTotals(readItems(), channelSelect.value);
   const updateResults = () => {
-    const product = selectedProduct();
-    const cost = productionCost(product);
     const resultRoot = document.querySelector('#pricing-results');
-    if (!product || cost === null) {
-      resultRoot.innerHTML = `<p class="pricing-message">${product ? 'Uzupełnij gramaturę, czas druku i cenę filamentu w produkcie, aby obliczyć minimalną cenę.' : 'Dodaj produkt, aby rozpocząć obliczenia.'}</p>`;
+    const basket = totals();
+    if (!basket) {
+      resultRoot.innerHTML = '<p class="pricing-message">Dodaj produkt i wpisz całkowitą liczbę sztuk większą od zera. Uzupełnij gramaturę, czas druku i cenę filamentu w każdym produkcie.</p>';
       return;
     }
+    const { cost, catalogPrice } = basket;
     const values = ['margin', 'extra', 'fee', 'offer'].map((name) => {
       const input = document.querySelector(`#pricing-${name}`);
       return input.value.trim() === '' || !input.validity.valid ? NaN : Number(input.value);
@@ -266,32 +282,53 @@ function renderPricingCalculator() {
       resultRoot.innerHTML = '<p class="pricing-message" role="alert">Wpisz poprawne, nieujemne wartości. Suma marży i prowizji musi być mniejsza niż 100%.</p>';
       return;
     }
-    const catalogPrice = Number(product.channelPrices?.[channelSelect.value] ?? product.price ?? 0);
     const discount = catalogPrice - result.minimum;
     const margin = result.margin === null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
-    resultRoot.innerHTML = `<section class="pricing-floor"><span>Twoja minimalna cena / szt.</span><strong>${moneyExact(result.minimum)}</strong><p>Przy minimalnej marży ${values[0].toLocaleString('pl-PL')}%</p></section><section class="pricing-offer ${result.acceptable ? 'is-acceptable' : 'is-below'}"><strong>${result.acceptable ? 'Oferta spełnia Twój próg marży' : 'Oferta poniżej Twojego progu'}</strong><div class="pricing-numbers"><div><span>Zysk przy tej ofercie</span><b>${moneyExact(result.profit)}</b></div><div><span>Marża przy tej ofercie</span><b>${margin}</b></div></div></section><dl class="detail-grid">${[['Cena katalogowa', moneyExact(catalogPrice)], ['Koszt produkcji / szt.', moneyExact(cost)], ['Cena bez straty', moneyExact(result.breakEven)], [discount >= 0 ? 'Możesz zejść z ceny o' : 'Cena katalogowa poniżej progu o', moneyExact(Math.abs(discount))]].map(([label, value]) => `<div class="detail-value"><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl><p class="form-hint">Zysk i marża przed podatkiem i kosztami ogólnymi. Cena minimalna jest zaokrąglana w górę do pełnego grosza.</p>`;
+    resultRoot.innerHTML = `<section class="pricing-floor"><span>Minimalna cena zestawu</span><strong>${moneyExact(result.minimum)}</strong><p>Przy minimalnej marży ${values[0].toLocaleString('pl-PL')}%</p></section><section class="pricing-offer ${result.acceptable ? 'is-acceptable' : 'is-below'}"><strong>${result.acceptable ? 'Oferta spełnia Twój próg marży' : 'Oferta poniżej Twojego progu'}</strong><div class="pricing-numbers"><div><span>Zysk przy tej ofercie</span><b>${moneyExact(result.profit)}</b></div><div><span>Marża przy tej ofercie</span><b>${margin}</b></div></div></section><dl class="detail-grid">${[['Cena katalogowa zestawu', moneyExact(catalogPrice)], ['Koszt produkcji zestawu', moneyExact(cost)], ['Cena bez straty', moneyExact(result.breakEven)], [discount >= 0 ? 'Możesz zejść z ceny o' : 'Cena katalogowa poniżej progu o', moneyExact(Math.abs(discount))]].map(([label, value]) => `<div class="detail-value"><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl><p class="form-hint">Zysk i marża przed podatkiem i kosztami ogólnymi. Cena minimalna jest zaokrąglana w górę do pełnego grosza.</p>`;
   };
-  let channelProductId = oldProduct;
-  const loadChannels = (resetOffer) => {
-    const product = selectedProduct();
+  const resetOffer = () => {
+    const basket = totals();
+    document.querySelector('#pricing-offer').value = basket ? basket.catalogPrice.toFixed(2) : '';
+    updateResults();
+  };
+  const loadChannels = (reset) => {
     const previous = channelSelect.value;
-    const preserveChannel = channelProductId === productSelect.value && channelSelect.options.length > 0;
-    const prices = Object.entries(product?.channelPrices || {}).filter(([, price]) => Number(price) > 0);
-    channelSelect.innerHTML = '<option value="">Cena bazowa</option>' + prices.map(([name]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-    channelSelect.value = preserveChannel && (previous === '' || prices.some(([name]) => name === previous)) ? previous : (prices.find(([name]) => name.toLowerCase() === 'vinted')?.[0] || '');
-    channelProductId = productSelect.value;
-    if (resetOffer || previous !== channelSelect.value) document.querySelector('#pricing-offer').value = product ? Number(product.channelPrices?.[channelSelect.value] ?? product.price ?? 0).toFixed(2) : '';
-    updateResults();
+    const hadOptions = channelSelect.options.length > 0;
+    const names = [...new Set(readItems().flatMap(({ product }) => Object.entries(product?.channelPrices || {}).filter(([, price]) => Number(price) > 0).map(([name]) => name)))];
+    channelSelect.innerHTML = '<option value="">Cena bazowa</option>' + names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    channelSelect.value = hadOptions && (previous === '' || names.includes(previous)) ? previous : (names.find((name) => name.toLowerCase() === 'vinted') || '');
+    if (reset || previous !== channelSelect.value || document.querySelector('#pricing-offer').value === '') resetOffer();
+    else updateResults();
   };
-  productSelect.onchange = () => loadChannels(true);
-  channelSelect.onchange = () => {
-    const product = selectedProduct();
-    document.querySelector('#pricing-offer').value = Number(product?.channelPrices?.[channelSelect.value] ?? product?.price ?? 0).toFixed(2);
-    updateResults();
+  let nextRow = 0;
+  const addRow = (item = {}) => {
+    const row = document.createElement('div');
+    row.className = 'pricing-item';
+    const id = nextRow++;
+    const selectId = id === 0 ? 'pricing-product' : `pricing-product-${id}`;
+    row.innerHTML = `<div class="field"><label for="${selectId}">Produkt</label><select id="${selectId}">${state.products.length ? state.products.map((product) => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`).join('') : '<option value="">Najpierw dodaj produkt</option>'}</select></div><div class="field"><label for="pricing-qty-${id}">Ilość</label><input id="pricing-qty-${id}" type="number" min="1" step="1" value="1" /></div><button type="button" class="remove-sale-item" aria-label="Usuń pozycję">×</button>`;
+    if (state.products.some((product) => String(product.id) === item.id)) row.querySelector('select').value = item.id;
+    row.querySelector('input').value = item.qty ?? '1';
+    row.querySelector('select').onchange = () => {
+      // Preserve a basket's selected channel; a single product prefers Vinted.
+      if (itemsRoot.children.length === 1) channelSelect.innerHTML = '';
+      loadChannels(true);
+    };
+    row.querySelector('input').oninput = resetOffer;
+    row.querySelector('button').onclick = () => {
+      row.remove();
+      if (!itemsRoot.children.length) addRow();
+      loadChannels(true);
+    };
+    itemsRoot.append(row);
   };
+  itemsRoot.innerHTML = '';
+  (previousItems.length ? previousItems : [{}]).forEach(addRow);
+  document.querySelector('#pricing-add-item').onclick = () => { addRow(); loadChannels(true); };
+  channelSelect.onchange = resetOffer;
   ['margin', 'extra', 'fee', 'offer'].forEach((name) => { document.querySelector(`#pricing-${name}`).oninput = updateResults; });
   document.querySelectorAll('[data-inventory-tab]').forEach((button) => { button.onclick = () => showInventoryTab(button.dataset.inventoryTab); });
-  loadChannels(oldProduct !== productSelect.value || document.querySelector('#pricing-offer').value === '');
+  loadChannels(false);
 }
 
 function getFilteredExpenses() {

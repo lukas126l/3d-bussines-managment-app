@@ -32,3 +32,19 @@ test('floor rounds up to a cent and covers zero price, loss and invalid margins'
  assert.equal(calculate(20,-1),null);
  assert.equal(calculate(20,NaN),null);
 });
+vm.runInContext(source.slice(source.indexOf('function productionCost('),source.indexOf('function snapshotSaleItem(')),context);
+test('basket sums multiple products and quantities, with channel fallback to base price',()=>{
+ const first={price:40,channelPrices:{Vinted:50},weightGrams:100,printHours:0,filamentPrice:100};
+ const second={price:30,weightGrams:50,printHours:0,filamentPrice:100};
+ const basket=context.calculateBasketTotals([{product:first,qty:2},{product:second,qty:1}],'Vinted');
+ assert.equal(basket.cost,25);
+ assert.equal(basket.catalogPrice,130);
+ const result=calculate(basket.cost,50,5,10,100);
+ assert.equal(result.minimum,75);
+ assert.equal(result.profit,60);
+ assert.equal(result.margin,60);
+ assert.equal(context.calculateBasketTotals([{product:first,qty:1.5}]),null);
+ assert.equal(context.calculateBasketTotals([{product:first,qty:0}]),null);
+ assert.equal(context.calculateBasketTotals([{product:{price:10},qty:1}]),null);
+ assert.equal(context.calculateBasketTotals([]),null);
+});

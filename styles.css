@@ -91,3 +91,20 @@ html,body{overscroll-behavior-y:none}
 .pull-refresh.is-loading svg{animation:pull-refresh-spin .75s linear infinite}
 @keyframes pull-refresh-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.pull-refresh{transition:none}.pull-refresh.is-loading svg{animation:none}}
+
+#pricing-items{display:grid;gap:12px}.pricing-item{display:grid;grid-template-columns:minmax(0,1fr) 76px 30px;gap:8px;align-items:end}.pricing-item select{width:100%}.pricing-item .field{min-width:0}
+/* Larger displays get their own layout; existing laptop and mobile rules stay intact. */
+@media(min-width:1800px){
+  .main-content{max-width:none;padding:0 clamp(48px,3vw,120px) 64px}
+  .topbar{height:160px}.topbar h1{font-size:32px}.section-heading h2{font-size:29px}
+  .section-heading p,.panel-header p{font-size:15px}.panel-header h3{font-size:18px}
+  .metrics-grid{gap:24px;margin-bottom:26px}.metric-card{padding:26px}.metric-label{font-size:15px}.metric-card strong{font-size:36px}.metric-card p{font-size:13px}
+  .dashboard-grid{gap:26px;margin-bottom:26px;grid-template-columns:minmax(0,1.8fr) minmax(0,1fr)}
+  .panel{padding:28px}.chart{height:clamp(240px,16vw,480px)}
+  table{font-size:15px}th{font-size:12px}td{padding:19px 16px}
+  .channel-row b,.channel-row strong{font-size:15px}.channel-row span,.legend{font-size:12px}
+  .row-edit,.row-delete,.text-button{font-size:13px}.status,.sale-products b{font-size:12px}
+  .pricing-layout{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:48px}.pricing-fields{gap:22px}
+  .pricing-fields label{font-size:14px}.pricing-fields input,.pricing-fields select{height:48px;font-size:16px}.pricing-item{grid-template-columns:minmax(0,1fr) 100px 30px}
+  .pricing-item .remove-sale-item{height:48px}.pricing-floor>strong{font-size:42px}
+}
