@@ -68,3 +68,15 @@ test('period margin remains unavailable for missing costs or zero revenue', () =
   assert.equal(run('salesProfitSummary([]).margin'), null);
   assert.equal(run('salesProfitSummary([{status:"done",amount:0,items:[{qty:1,unitCost:5}]}]).profit'), -5);
 });
+
+test('catalog filament prices update products but preserve sales and material snapshots', () => {
+  run('state.filaments = [{id:"pla",name:"Czarny",type:"PLA",price:80}]; state.products.push({name:"Linked",filamentId:"pla",weightGrams:100,printHours:2})');
+  assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 9.2);
+  run('globalThis.sold = snapshotSaleItem("Linked", 1); state.filaments[0].price = 120');
+  assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 13.2);
+  assert.equal(run('snapshotSaleItem("Linked", 2, sold).unitCost'), 9.2);
+  assert.equal(run('snapshotSaleItem("Linked", 2, sold).material.price'), 80);
+  run('state.filaments[0].archived = true');
+  assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 13.2);
+  assert.equal(run('productionCost({filamentId:"missing",weightGrams:100,printHours:2,filamentPrice:80})'), null);
+});

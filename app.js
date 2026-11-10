@@ -38,7 +38,7 @@ const persistedState = localStorage.getItem(storeKey);
 let state = persistedState ? JSON.parse(persistedState) : defaultState;
 const money = (value) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(value);
 const moneyExact = (value) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-const emptyState = () => ({ sales: [], products: [], expenses: [], channels: [] });
+const emptyState = () => ({ sales: [], products: [], expenses: [], channels: [], filaments: [], filamentTypes: ['PLA', 'PETG', 'ABS'] });
 function save() {
   localStorage.setItem(storeKey, JSON.stringify(state));
   if (!currentUser || !supabaseClient) return;
@@ -72,7 +72,14 @@ function saleItems(sale) {
 }
 
 // Costs are stored per sale item so later catalog edits never rewrite history.
+function filamentFor(product) {
+  return (state.filaments || []).find((f) => String(f.id) === String(product?.filamentId));
+}
+function effectiveFilamentPrice(product) {
+  return product?.filamentId ? filamentFor(product)?.price : product?.filamentPrice;
+}
 function productionCost(product) {
+  if (product) product = { ...product, filamentPrice: effectiveFilamentPrice(product) };
   if (!product || ['weightGrams', 'printHours', 'filamentPrice'].some((key) => product[key] === '' || product[key] == null || !Number.isFinite(Number(product[key])) || Number(product[key]) < 0)) return null;
   const rate = Number(product.hourlyRate ?? 0.60);
   const extra = Number(product.extraCost ?? 0);
@@ -82,7 +89,10 @@ function productionCost(product) {
 
 function snapshotSaleItem(product, qty, previous) {
   const unitCost = previous?.product === product && typeof previous.unitCost === 'number' ? previous.unitCost : productionCost(state.products.find((entry) => entry.name === product));
-  return { product, qty: Number(qty), unitCost };
+  const catalog = state.products.find((entry) => entry.name === product);
+  const filament = filamentFor(catalog);
+  const material = previous?.product === product ? previous.material : filament ? { name: filament.name, type: filament.type, price: filament.price, weightGrams: catalog.weightGrams } : undefined;
+  return { product, qty: Number(qty), unitCost, ...(material ? { material } : {}) };
 }
 
 function costedSaleItems(sale) {
@@ -233,7 +243,56 @@ function renderSalesAnalysis() {
 
 function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); }
 
+function renderFilaments() {
+  const root = document.querySelector('#filament-catalog');
+  if (!root) return;
+  root.innerHTML = '<button type="button" class="secondary-button" id="add-filament">+ Dodaj filament</button>' + ((state.filaments || []).length ? '<div class="table-wrap"><table><thead><tr><th>NAZWA</th><th>RODZAJ</th><th>CENA / KG</th><th></th></tr></thead><tbody>' + state.filaments.map(f => `<tr><td>${escapeHtml(f.name)}${f.archived ? ' (archiwalny)' : ''}</td><td>${escapeHtml(f.type)}</td><td>${moneyExact(f.price)}</td><td><button type="button" class="row-edit" data-filament-edit="${escapeHtml(f.id)}">Edytuj</button><button type="button" class="row-edit" data-filament-archive="${escapeHtml(f.id)}">${f.archived ? 'Przywróć' : 'Archiwizuj'}</button></td></tr>`).join('') + '</tbody></table></div>' : '<p class="empty">Dodaj pierwszy filament. Cenę podaj za 1 kg.</p>');
+  root.querySelector('#add-filament').onclick = () => openFilamentEditor();
+  root.querySelectorAll('[data-filament-edit]').forEach(b => b.onclick = () => openFilamentEditor(b.dataset.filamentEdit));
+  root.querySelectorAll('[data-filament-archive]').forEach(b => b.onclick = () => {
+    const f = state.filaments.find(f => String(f.id) === b.dataset.filamentArchive);
+    f.archived = !f.archived; save(); renderAll();
+  });
+}
+
+function openFilamentEditor(id = null, onSaved) {
+  const record = (state.filaments || []).find(f => String(f.id) === String(id));
+  const dialog = document.createElement('dialog');
+  dialog.className = 'filament-dialog';
+  const types = [...new Set(['PLA', 'PETG', 'ABS', ...(state.filamentTypes || []), ...(state.filaments || []).map(f => f.type)])];
+  dialog.innerHTML = `<form><h2>${record ? 'Edytuj filament' : 'Dodaj filament'}</h2><div class="field"><label for="filament-name">Nazwa</label><input id="filament-name" name="name" required value="${escapeHtml(record?.name || '')}"></div><div class="field"><label for="filament-type">Rodzaj</label><select id="filament-type" name="type">${types.map(t => `<option ${t === record?.type ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}<option value="__new">+ Nowy rodzaj</option></select></div><div class="field" id="new-type-field" hidden><label for="new-filament-type">Nowy rodzaj</label><input id="new-filament-type"></div><div class="field"><label for="filament-price">Cena za 1 kg (zł)</label><input id="filament-price" name="price" type="number" min="0" step="0.01" required value="${record?.price ?? ''}"></div><p class="form-hint">Zmiana ceny przeliczy koszty i marże ${record ? state.products.filter(p => String(p.filamentId) === String(record.id)).length : 0} produktów. Zapisane koszty sprzedaży pozostaną bez zmian.</p><div class="row-actions"><button type="button" class="secondary-button" id="cancel-filament">Anuluj</button><button class="primary-button" type="submit">Zapisz filament</button></div></form>`;
+  document.body.append(dialog);
+  const close = () => { dialog.close(); dialog.remove(); };
+  dialog.addEventListener('cancel', e => { e.preventDefault(); close(); });
+  dialog.querySelector('#cancel-filament').onclick = close;
+  dialog.querySelector('select').onchange = e => {
+    const custom = e.target.value === '__new';
+    dialog.querySelector('#new-type-field').hidden = !custom;
+    dialog.querySelector('#new-filament-type').required = custom;
+  };
+  dialog.querySelector('form').onsubmit = e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    data.name = data.name.trim();
+    data.type = data.type === '__new' ? dialog.querySelector('#new-filament-type').value.trim().toUpperCase() : data.type;
+    data.price = Number(data.price);
+    if (!data.name || !data.type || !Number.isFinite(data.price) || data.price < 0) return;
+    state.filaments ||= [];
+    const current = record && state.filaments.find(f => f.id === record.id);
+    if (record && !current) { alert('Filament został usunięty. Otwórz formularz ponownie.'); return; }
+    const filament = current || { id: crypto.randomUUID() };
+    Object.assign(filament, data);
+    if (!current) state.filaments.push(filament);
+    state.filamentTypes = [...new Set([...types, data.type])];
+    save(); renderAll(); close();
+    onSaved?.(filament);
+  };
+  dialog.showModal();
+}
+
+
 function renderInventory() {
+  renderFilaments();
   document.querySelector('#inventory-grid').innerHTML = state.products.length ? `<div class="table-wrap"><table><thead><tr><th>PRODUKT</th><th>CENA BAZOWA</th><th>CENY W KANAŁACH</th><th>KOSZT / SZT.</th><th>REALIZACJA</th><th></th></tr></thead><tbody>${state.products.map((product) => {
     const channelPrices = Object.entries(product.channelPrices || {}).filter(([, price]) => Number(price) > 0);
     const priceList = channelPrices.length ? channelPrices.map(([channel, price]) => `<span class="channel-price"><b>${escapeHtml(channel)}</b>${moneyExact(price)}</span>`).join('') : '<span class="muted">Brak cen kanałowych</span>';
@@ -266,7 +325,8 @@ function calculateBasketTotals(items, channel = '') {
 }
 
 function showInventoryTab(tab) {
-  document.querySelector('#inventory-grid').hidden = tab === 'calculator';
+  document.querySelector('#inventory-grid').hidden = tab !== 'list';
+  document.querySelector('#filament-catalog').hidden = tab !== 'filaments';
   document.querySelector('#pricing-calculator').hidden = tab !== 'calculator';
   document.querySelectorAll('[data-inventory-tab]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.inventoryTab === tab)));
 }
@@ -602,7 +662,7 @@ function fieldMarkup([name, label, type, className], record) {
 
 function saleItemMarkup(item = {}) {
   const selected = item.product || '';
-  return `<div class="sale-item-row"><select class="sale-product" aria-label="Produkt" required><option value="" ${!selected ? 'selected' : ''} disabled>Wybierz produkt</option>${state.products.map((product) => `<option value="${escapeHtml(product.name)}" ${product.name === selected ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('')}</select><input class="sale-qty" type="number" min="1" step="1" value="${Number(item.qty) || 1}" aria-label="Liczba sztuk" /><button type="button" class="remove-sale-item" aria-label="Usuń produkt">×</button></div>`;
+  return `<div class="sale-item-row"><select class="sale-product" aria-label="Produkt" required><option value="" ${!selected ? 'selected' : ''} disabled>Wybierz produkt</option>${selected && !state.products.some((p) => p.name === selected) ? `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>` : ''}${state.products.map((product) => `<option value="${escapeHtml(product.name)}" ${product.name === selected ? 'selected' : ''}>${escapeHtml(product.name)}</option>`).join('')}</select><input class="sale-qty" type="number" min="1" step="1" value="${Number(item.qty) || 1}" aria-label="Liczba sztuk" /><button type="button" class="remove-sale-item" aria-label="Usuń produkt">×</button></div>`;
 }
 
 function productChannelPricesMarkup(record) {
@@ -636,7 +696,7 @@ function openDetails(type, id) {
       const margin = result?.margin == null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
       return `<section class="product-profit-card${result && result.profit < 0 ? ' is-loss' : ''}"><div class="product-profit-heading"><span>${escapeHtml(name)}</span><span>Marża: ${margin}</span></div><span class="product-profit-label">${result && result.profit < 0 ? 'Strata' : 'Zysk'} na sztuce</span><strong class="product-profit-value">${result ? moneyExact(result.profit) : '—'}</strong><div class="product-profit-meta"><span>Cena: ${moneyExact(price)}</span><span>Koszt: ${cost === null ? 'uzupełnij parametry' : moneyExact(cost)}</span></div></section>`;
     }).join('');
-    content = `<div class="detail-prices">${profitCards}</div><p class="form-hint">Przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p><h3>Parametry druku</h3><dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', record.filamentPrice == null ? '—' : moneyExact(record.filamentPrice) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl>`;
+    content = `<div class="detail-prices">${profitCards}</div><p class="form-hint">Przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p><h3>Parametry druku</h3><dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', effectiveFilamentPrice(record) == null ? '—' : moneyExact(effectiveFilamentPrice(record)) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl>`;
   } else {
     const items = costedSaleItems(record);
     content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${record.status === 'done' ? detail('Data rozliczenia', escapeHtml(saleRecognitionDate(record)) + (record.completedDate ? '' : ' (brak zapisanej daty zakończenia)')) : ''}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
@@ -667,6 +727,24 @@ function openModal(type, id = null) {
   const formFields = root.querySelector('#modal-fields');
   formFields.innerHTML = `${type === 'sale' ? '<div class="field full"><label>Produkty w sprzedaży</label><div id="sale-items" class="sale-items"></div><button type="button" id="add-sale-item" class="add-sale-item">+ Dodaj kolejny produkt</button></div>' : ''}${fields[type].map((field) => fieldMarkup(field, record)).join('')}${type === 'product' ? productChannelPricesMarkup(record) : ''}`;
 
+  if (type === 'product') {
+    const holder = document.createElement('div');
+    holder.className = 'field full';
+    holder.innerHTML = '<label for="product-filament">Filament</label><select id="product-filament" name="filamentId"></select><button type="button" class="add-sale-item" id="inline-filament">+ Dodaj nowy filament</button>';
+    formFields.prepend(holder);
+    const select = holder.querySelector('select');
+    const refresh = (selected = record?.filamentId || '') => {
+      select.innerHTML = '<option value="">Dotychczasowa cena wpisana ręcznie</option>' + (state.filaments || []).filter(f => !f.archived || String(f.id) === String(selected)).map(f => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)} · ${escapeHtml(f.type)} · ${moneyExact(f.price)}/kg${f.archived ? ' (archiwalny)' : ''}</option>`).join('');
+      select.value = selected;
+      const price = modal.querySelector('#field-filamentPrice');
+      price.closest('.field').hidden = Boolean(select.value);
+      price.required = false;
+    };
+    refresh();
+    select.onchange = () => refresh(select.value);
+    holder.querySelector('button').onclick = () => openFilamentEditor(null, (f) => { refresh(f.id); updateCostPreview(); });
+  }
+
   if (type === 'sale') {
     const status = root.querySelector('#field-status');
     const completedDate = root.querySelector('#field-completedDate');
@@ -687,7 +765,7 @@ function openModal(type, id = null) {
   }
   const readItems = () => [...modal.querySelectorAll('.sale-item-row')].map((row) => {
     const product = row.querySelector('.sale-product').value;
-    const previous = row.dataset.unitCost === undefined ? null : { product: row.dataset.costProduct, unitCost: Number(row.dataset.unitCost) };
+    const previous = row.dataset.unitCost === undefined ? null : { product: row.dataset.costProduct, unitCost: Number(row.dataset.unitCost), material: row._material };
     const item = snapshotSaleItem(product, row.querySelector('.sale-qty').value, previous);
     if (editing && (!previous || previous.product !== product) && !root.querySelector('#confirm-historical-costs')?.checked) item.unitCost = null;
     else if (editing && (!previous || previous.product !== product)) {
@@ -714,6 +792,7 @@ function openModal(type, id = null) {
     const addItem = (item) => {
       list.insertAdjacentHTML('beforeend', saleItemMarkup(item));
       if (typeof item.unitCost === 'number' && Number.isFinite(item.unitCost) && item.unitCost >= 0) {
+        list.lastElementChild._material = item.material;
         list.lastElementChild.dataset.costProduct = item.product;
         list.lastElementChild.dataset.unitCost = String(item.unitCost);
       } else if (editing) {
@@ -780,7 +859,7 @@ function openModal(type, id = null) {
       if (editing) {
         const oldName = record.name;
         Object.assign(record, value);
-        if (oldName !== value.name) state.sales.forEach((sale) => { saleItems(sale).forEach((item) => { if (item.product === oldName) item.product = value.name; }); if (!sale.items && sale.product === oldName) sale.product = value.name; });
+
       } else state.products.push({ id: Date.now(), ...value, icon: '▤' });
     }
     if (type === 'expense') {

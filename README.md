@@ -50,3 +50,11 @@ Marża wybranego okresu w analizie sprzedaży to łączny zysk zakończonych zam
 W Produktach przełącz widok na „Kalkulator ceny”. Wybierz produkt i cenę bazową lub kanał (Vinted wybierany domyślnie, jeśli ma własną cenę). Ustaw minimalną akceptowaną marżę, wpisz negocjowaną cenę oraz opcjonalne koszty i prowizję sprzedawcy. Kalkulator nie zmienia danych produktu.
 
 Minimalna cena = (koszt produkcji + dodatkowe koszty) / (1 − marża / 100 − prowizja / 100), zaokrąglona w górę do grosza. Początkowe 50% marży jest ustawieniem do zmiany, a nie rekomendacją. Wynik nie uwzględnia podatków i kosztów ogólnych.
+
+## Filamenty
+
+W Produktach wybierz „Filamenty”, aby dodać nazwę, rodzaj i cenę za 1 kg. Lista rodzajów zawiera PLA, PETG i ABS oraz pozwala dopisywać kolejne. Filament można również dodać bez zamykania formularza produktu. Produkt korzysta z jednego filamentu i zużycia w gramach, z uwzględnieniem odpadów.
+
+Zmiana ceny filamentu przelicza koszt produktu, marżę i kalkulator negocjacji, bez zmiany ceny sprzedaży. Archiwizacja ukrywa filament przy nowych przypisaniach, ale zachowuje istniejące powiązania. Starsze produkty mogą nadal korzystać z ręcznie wpisanej ceny/kg.
+
+Nowe pozycje sprzedaży zapisują koszt sztuki oraz nazwę, rodzaj, cenę/kg i zużycie filamentu. Zapisane koszty nie zmieniają się po edycji katalogu. Starsze sprzedaże bez kosztu nadal pokazują oznaczony szacunek, zgodnie z dotychczasowym zachowaniem.

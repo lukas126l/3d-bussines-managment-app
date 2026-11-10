@@ -99,7 +99,8 @@
 
         <section id="inventory" class="view">
           <div class="section-heading"><div><h2>Produkty</h2><p>Parametry druku i koszt produkcji jednej sztuki.</p></div><button class="primary-button" data-action="new-product">+ Dodaj produkt</button></div>
-          <div class="inventory-tabs" aria-label="Widok produktów"><button type="button" class="secondary-button" data-inventory-tab="list" aria-pressed="true">Lista produktów</button><button type="button" class="secondary-button" data-inventory-tab="calculator" aria-pressed="false">Kalkulator ceny</button></div>
+          <div class="inventory-tabs" aria-label="Widok produktów"><button type="button" class="secondary-button" data-inventory-tab="list" aria-pressed="true">Lista produktów</button><button type="button" class="secondary-button" data-inventory-tab="filaments" aria-pressed="false">Filamenty</button><button type="button" class="secondary-button" data-inventory-tab="calculator" aria-pressed="false">Kalkulator ceny</button></div>
+          <section id="filament-catalog" class="panel" hidden></section>
           <section id="inventory-grid" class="panel product-list"></section>
           <section id="pricing-calculator" class="panel" hidden aria-labelledby="pricing-title">
             <div class="panel-header"><div><h3 id="pricing-title">Ile mogę zejść z ceny?</h3><p>Sprawdź ofertę kupującego i minimalną cenę całego zestawu.</p></div></div>

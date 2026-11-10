@@ -32,7 +32,7 @@ test('floor rounds up to a cent and covers zero price, loss and invalid margins'
  assert.equal(calculate(20,-1),null);
  assert.equal(calculate(20,NaN),null);
 });
-vm.runInContext(source.slice(source.indexOf('function productionCost('),source.indexOf('function snapshotSaleItem(')),context);
+vm.runInContext(source.slice(source.indexOf('function filamentFor('),source.indexOf('function snapshotSaleItem(')),context);
 test('basket sums multiple products and quantities, with channel fallback to base price',()=>{
  const first={price:40,channelPrices:{Vinted:50},weightGrams:100,printHours:0,filamentPrice:100};
  const second={price:30,weightGrams:50,printHours:0,filamentPrice:100};
