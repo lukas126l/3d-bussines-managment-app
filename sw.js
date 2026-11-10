@@ -1,4 +1,4 @@
-const CACHE_NAME = 'forma-3d-v45';
+const CACHE_NAME = 'forma-3d-v46';
 const APP_FILES = [
   './',
   './index.html',
