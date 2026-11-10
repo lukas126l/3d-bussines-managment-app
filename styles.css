@@ -117,3 +117,7 @@ html,body{overscroll-behavior-y:none}
 .filament-dialog::backdrop { background: #0007; }
 .filament-dialog .field { margin-bottom: 16px; }
 #filament-catalog { padding: 20px; }
+#filament-catalog > .table-wrap { margin-top: 16px; }
+#filament-catalog td:last-child { white-space: nowrap; }
+#filament-catalog td .row-edit { padding: 10px 4px; }
+#filament-catalog td .row-edit + .row-edit { margin-inline-start: 16px; }
