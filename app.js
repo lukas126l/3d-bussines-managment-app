@@ -78,10 +78,15 @@ function filamentFor(product) {
 function effectiveFilamentPrice(product) {
   return product?.filamentId ? filamentFor(product)?.price : product?.filamentPrice;
 }
+function printerHourlyRate(product) {
+  // Old unversioned 0.60 rates were the A1 preset. Preserve other custom rates.
+  if (product?.hourlyRate == null || (!product.printerProfile && Number(product.hourlyRate) === 0.60)) return 0.66;
+  return Number(product.hourlyRate);
+}
 function productionCost(product) {
   if (product) product = { ...product, filamentPrice: effectiveFilamentPrice(product) };
   if (!product || ['weightGrams', 'printHours', 'filamentPrice'].some((key) => product[key] === '' || product[key] == null || !Number.isFinite(Number(product[key])) || Number(product[key]) < 0)) return null;
-  const rate = Number(product.hourlyRate ?? 0.60);
+  const rate = printerHourlyRate(product);
   const extra = Number(product.extraCost ?? 0);
   if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(extra) || extra < 0) return null;
   return Number(product.weightGrams) / 1000 * Number(product.filamentPrice) + Number(product.printHours) * rate + extra;
@@ -723,8 +728,8 @@ function productPrice(productName, channelName = '') {
 }
 
 function valueFor(field, record) {
+  if (field === 'hourlyRate') return printerHourlyRate(record);
   if (record && record[field] !== undefined && record[field] !== null) return record[field];
-  if (field === 'hourlyRate') return 0.60;
   if (field === 'extraCost' || field === 'sellingCosts') return 0;
   if (field === 'date') return iso(now);
   if (field === 'completedDate') return record?.status === 'done' ? record.date : '';
@@ -779,7 +784,7 @@ function openDetails(type, id) {
       const margin = result?.margin == null ? '—' : `${result.margin.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%`;
       return `<section class="product-profit-card${result && result.profit < 0 ? ' is-loss' : ''}"><div class="product-profit-heading"><span>${escapeHtml(name)}</span><span>Marża: ${margin}</span></div><span class="product-profit-label">${result && result.profit < 0 ? 'Strata' : 'Zysk'} na sztuce</span><strong class="product-profit-value">${result ? moneyExact(result.profit) : '—'}</strong><div class="product-profit-meta"><span>Cena: ${moneyExact(price)}</span><span>Koszt: ${cost === null ? 'uzupełnij parametry' : moneyExact(cost)}</span></div></section>`;
     }).join('');
-    content = `<div class="detail-prices">${profitCards}</div><p class="form-hint">Przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p><h3>Parametry druku</h3><dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', effectiveFilamentPrice(record) == null ? '—' : moneyExact(effectiveFilamentPrice(record)) + ' / kg')}${detail('Stawka druku', moneyExact(record.hourlyRate ?? 0.60) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl>`;
+    content = `<div class="detail-prices">${profitCards}</div><p class="form-hint">Przed opłatami sprzedaży, wysyłką, podatkiem i kosztami ogólnymi.</p><h3>Parametry druku</h3><dl class="detail-grid">${detail('Zużycie filamentu / szt.', number(record.weightGrams, 'g'))}${detail('Czas druku / szt.', number(record.printHours, 'h'))}${detail('Cena filamentu', effectiveFilamentPrice(record) == null ? '—' : moneyExact(effectiveFilamentPrice(record)) + ' / kg')}${detail('Stawka druku', moneyExact(printerHourlyRate(record)) + ' / h')}${detail('Dodatki / szt.', moneyExact(record.extraCost ?? 0))}${detail('Koszt produkcji / szt.', cost === null ? 'Uzupełnij parametry produktu' : moneyExact(cost))}</dl>`;
   } else {
     const items = costedSaleItems(record);
     content = `<dl class="detail-grid">${detail('Kanał', escapeHtml(record.channel))}${detail('Data sprzedaży', escapeHtml(record.date))}${record.status === 'done' ? detail('Data rozliczenia', escapeHtml(saleRecognitionDate(record)) + (record.completedDate ? '' : ' (brak zapisanej daty zakończenia)')) : ''}${detail('Realizacja', escapeHtml(fulfillmentText(record)))}${detail('Kwota sprzedaży', moneyExact(record.amount))}${detail('Opłaty i wysyłka po naszej stronie', moneyExact(record.sellingCosts || 0))}</dl><h3>Produkty i koszty produkcji</h3><div class="detail-prices">${items.map((item) => `<section class="cost-preview"><strong>${escapeHtml(item.product)} × ${escapeHtml(item.qty)}</strong><p>${item.unitCost === null ? 'Brak parametrów kosztów — uzupełnij produkt.' : `${moneyExact(item.unitCost)} / szt. · razem ${moneyExact(item.unitCost * item.qty)}`}</p></section>`).join('')}</div><section class="cost-preview">${profitabilityMarkup(record)}</section><p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Dla niezakończonych zamówień jest prognozą.</p>`;
@@ -862,7 +867,7 @@ function openModal(type, id = null) {
     if (!preview) return;
     if (type === 'product') {
       const cost = productionCost(Object.fromEntries(new FormData(modal)));
-      preview.innerHTML = `<strong>Koszt produkcji / szt.: ${cost === null ? 'uzupełnij parametry' : moneyExact(cost)}</strong><p class="form-hint">Stawka 0,60 zł/h: szacunkowo 0,15 zł prądu + 0,45 zł zużycia Bambu Lab A1. Możesz ją zmienić. Czas 1,5 h oznacza 1 godz. 30 min. Gramatura powinna uwzględniać podpory i odpady.</p>`;
+      preview.innerHTML = `<strong>Koszt produkcji / szt.: ${cost === null ? 'uzupełnij parametry' : moneyExact(cost)}</strong><p class="form-hint">Domyślnie P2S + AMS 2 Pro bez suszenia: 0,66 zł/h = około 0,21 zł prądu (szacunek 210 W × 1 zł/kWh, Enea G11 2026) + rezerwa eksploatacyjna 0,45 zł/h. Możesz zmienić stawkę; aktywne suszenie wymaga doliczenia energii. Stara domyślna stawka A1 0,60 zł/h jest przeliczana na nową. Czas 1,5 h oznacza 1 godz. 30 min. Gramatura powinna uwzględniać podpory i odpady.</p>`;
     } else {
       preview.innerHTML = profitabilityMarkup({ status: root.querySelector('#field-status').value, amount: root.querySelector('#field-amount').value, sellingCosts: root.querySelector('#field-sellingCosts').value, items: readItems() }) + '<p class="form-hint">Wynik przed podatkiem i kosztami ogólnymi. Przy niezakończonym zamówieniu jest prognozą. Nie dodawaj ponownie opakowania uwzględnionego w produkcie. Brakujące koszty historyczne wymagają osobnego zatwierdzenia poniżej.</p>';
     }
@@ -937,6 +942,7 @@ function openModal(type, id = null) {
     }
     if (type === 'product') {
       value.price = Number(value.price);
+      value.printerProfile = 'p2s-ams2-v1';
       ['weightGrams', 'printHours', 'filamentPrice', 'hourlyRate', 'extraCost'].forEach((key) => { value[key] = value[key] === '' ? null : Number(value[key]); });
       value.channelPrices = Object.fromEntries([...modal.querySelectorAll('.channel-price-input')].map((input) => [input.dataset.channelName, Number(input.value)]).filter(([, price]) => Number.isFinite(price) && price > 0));
       if (editing) {

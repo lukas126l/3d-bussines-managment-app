@@ -33,7 +33,7 @@ Service worker przechowuje wyłącznie znane pliki aplikacji. Zapytania do Supab
 
 ## Koszty produkcji i rentowność
 
-W produkcie wpisz zużycie filamentu z odpadami (g/szt.), czas druku (godziny dziesiętne), cenę filamentu za kg oraz dodatki na sztukę. Domyślna stawka Bambu Lab A1 wynosi 0,60 zł/h (szacunkowo prąd 0,15 zł i rezerwa eksploatacyjna 0,45 zł); można ją zmienić przy produkcie.
+W produkcie wpisz zużycie filamentu z odpadami (g/szt.), czas druku (godziny dziesiętne), cenę filamentu za kg oraz dodatki na sztukę. Domyślna stawka P2S + AMS 2 Pro bez aktywnego suszenia wynosi 0,66 zł/h: szacunek 210 W (200 W P2S przy PLA + założone 10 W AMS) przy 1 zł/kWh brutto oraz dotychczasowa rezerwa eksploatacyjna 0,45 zł/h. Cena energii to zaokrąglony koszt zmienny Enea G11 na 2026 r. (około 0,9743 zł/kWh), bez opłat stałych. Stare, nieoznaczone stawki A1 0,60 zł/h są przeliczane na 0,66 zł/h; inne stawki pozostają bez zmian. Zapis produktu oznacza nowy profil i pozwala zachować dowolną ręczną stawkę, także 0,60 zł/h. Koszty zapisane przy sprzedaży pozostają niezmienne. Suszenie i inne materiały wymagają korekty według rzeczywistego zużycia.
 
 Koszt sztuki = gramy / 1000 × cena kg + godziny × stawka + dodatki. Sprzedaż zapisuje koszt sztuki na każdej pozycji. Zmiany katalogu nie zmieniają zapisanych kosztów; edycja ilości korzysta z historycznej stawki. Brakujące koszty można uzupełnić przez zapis sprzedaży po uzupełnieniu produktu.
 

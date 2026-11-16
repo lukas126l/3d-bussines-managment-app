@@ -32,7 +32,7 @@ test('filament creation inside product, price changes and historical sales on de
       await page.getByRole('button',{name:'Zapisz filament',exact:true}).click();
       assert.equal(await page.locator('#field-weightGrams').inputValue(),'100');
       await page.getByRole('button',{name:'Zapisz',exact:true}).click();
-      assert.equal(await page.evaluate(() => productionCost(state.products[0])),9.2);
+      assert.equal(await page.evaluate(() => productionCost(state.products[0])),9.32);
       await page.evaluate(() => {
         state.sales=[{id:99,items:[snapshotSaleItem(state.products[0].name,2)],amount:40}];
         openFilamentEditor(state.filaments[0].id);
@@ -43,8 +43,8 @@ test('filament creation inside product, price changes and historical sales on de
         cost:productionCost(state.products[0]),sale:state.sales[0].items[0],
         stored:JSON.parse(localStorage.getItem(storeKey)).filaments[0]
       }));
-      assert.equal(result.cost,13.2);
-      assert.equal(result.sale.unitCost,9.2);
+      assert.equal(result.cost,13.32);
+      assert.equal(result.sale.unitCost,9.32);
       assert.equal(result.sale.material.price,80);
       assert.equal(result.stored.type,'TPU');
       await page.close();

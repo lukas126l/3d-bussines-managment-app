@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-const state = { products: [{ name: 'Test', weightGrams: 100, printHours: 3, filamentPrice: 80 }] };
+const state = { products: [{ name: 'Test', weightGrams: 100, printHours: 3, filamentPrice: 80, hourlyRate: 0.60, printerProfile: "custom" }] };
 const ctx = vm.createContext({ state, moneyExact: (n) => n.toFixed(2) });
 vm.runInContext(source.slice(source.indexOf('function saleItems('), source.indexOf('function salesRows(')), ctx);
 const run = (code) => vm.runInContext(code, ctx);
@@ -34,7 +34,7 @@ test('catalog updates preserve historical costs, including a zero cost', () => {
 });
 
 test('legacy orders use current product costs without changing stored orders', () => {
-  run('state.products.push({name: "Legacy", weightGrams: 100, printHours: 3, filamentPrice: 80})');
+  run('state.products.push({name: "Legacy", weightGrams: 100, printHours: 3, filamentPrice: 80, hourlyRate: 0.60, printerProfile: "custom"})');
   run('globalThis.legacy = {product: "Legacy", qty: 2, amount: 40, sellingCosts: 2}');
   assert.equal(run('saleProfit(legacy).cost'), 21.6);
   assert.equal(run('saleProfit(legacy).profit'), 18.4);
@@ -70,7 +70,7 @@ test('period margin remains unavailable for missing costs or zero revenue', () =
 });
 
 test('catalog filament prices update products but preserve sales and material snapshots', () => {
-  run('state.filaments = [{id:"pla",name:"Czarny",type:"PLA",price:80}]; state.products.push({name:"Linked",filamentId:"pla",weightGrams:100,printHours:2})');
+  run('state.filaments = [{id:"pla",name:"Czarny",type:"PLA",price:80}]; state.products.push({name:"Linked",filamentId:"pla",weightGrams:100,printHours:2,hourlyRate:0.60,printerProfile:"custom"})');
   assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 9.2);
   run('globalThis.sold = snapshotSaleItem("Linked", 1); state.filaments[0].price = 120');
   assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 13.2);
@@ -79,4 +79,12 @@ test('catalog filament prices update products but preserve sales and material sn
   run('state.filaments[0].archived = true');
   assert.equal(run('productionCost(state.products.find(p => p.name === "Linked"))'), 13.2);
   assert.equal(run('productionCost({filamentId:"missing",weightGrams:100,printHours:2,filamentPrice:80})'), null);
+});
+
+test('P2S preset replaces old A1 default while preserving custom and historical rates', () => {
+  assert.equal(run('printerHourlyRate({})'), 0.66);
+  assert.equal(run('printerHourlyRate({hourlyRate:0.60})'), 0.66);
+  assert.equal(run('printerHourlyRate({hourlyRate:0.60,printerProfile:"p2s-ams2-v1"})'), 0.60);
+  assert.equal(run('printerHourlyRate({hourlyRate:2})'), 2);
+  assert.equal(run('snapshotSaleItem("Test",2,{product:"Test",unitCost:9.8}).unitCost'), 9.8);
 });
