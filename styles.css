@@ -129,3 +129,21 @@ select { min-height: 40px; }
 @media (max-width: 600px) {
   .toolbar select, .toolbar .search { height: 48px; min-height: 48px; }
 }
+
+#sales-statistics[hidden], #sales-list-panel[hidden] { display: none; }
+.statistics-panel { padding: 24px; margin-bottom: 20px; min-width: 0; }
+.statistics-panel > .field { display: grid; gap: 8px; max-width: 240px; margin-bottom: 24px; }
+.statistics-panel small { color: var(--muted); line-height: 1.5; }
+.statistics-scroll { overflow-x: auto; }
+.statistics-bars { display: flex; gap: 10px; padding: 16px 0; align-items: end; }
+.daily-bars { min-width: 720px; }
+.monthly-bars { min-width: 640px; }
+.statistics-column { flex: 1; min-width: 0; text-align: center; font-size: 11px; color: var(--muted); }
+.statistics-column b { display: block; color: var(--ink); margin: 6px 0; }
+.statistics-bar-space { height: 180px; display: flex; gap: 3px; align-items: end; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.statistics-bar-space i { display: block; flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; }
+.statistics-bar-space .completed-bar { background: var(--blue); }
+.statistics-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--accent-strong); }
+.statistics-legend span + span { color: var(--blue); }
+.statistics-panel summary { cursor: pointer; padding: 14px 0; }
+@media(max-width:600px) { .statistics-panel { padding: 16px; } }

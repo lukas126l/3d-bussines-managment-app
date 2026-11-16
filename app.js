@@ -241,7 +241,61 @@ function renderSalesAnalysis() {
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(`${from}T00:00:00`).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(`${to}T00:00:00`).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
 }
 
-function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); }
+function salesMonthStats(sales, month) {
+  const ordered = sales.filter(s => s.status !== 'cancelled' && String(s.date).slice(0, 7) === month);
+  const completed = sales.filter(s => s.status === 'done' && String(saleRecognitionDate(s)).slice(0, 7) === month);
+  const [year, m] = month.split('-').map(Number);
+  const days = Array.from({ length: new Date(year, m, 0).getDate() }, (_, i) => ({
+    day: i + 1, count: ordered.filter(s => Number(String(s.date).slice(8, 10)) === i + 1).length
+  }));
+  return {
+    orders: ordered.length,
+    units: ordered.reduce((sum, s) => sum + saleItems(s).reduce((n, i) => n + Number(i.qty), 0), 0),
+    value: ordered.reduce((sum, s) => sum + Number(s.amount), 0),
+    completed: completed.reduce((sum, s) => sum + Number(s.amount), 0),
+    legacy: completed.filter(s => !s.completedDate).length,
+    days
+  };
+}
+
+function renderSalesStatistics() {
+  const root = document.querySelector('#sales-statistics');
+  if (!root) return;
+  const input = root.querySelector('#statistics-month');
+  if (!input.value) input.value = localDateToday().slice(0, 7);
+  const month = input.value;
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  const data = salesMonthStats(state.sales, month);
+  root.querySelector('#statistics-summary').innerHTML = [
+    ['Liczba zamówień', data.orders, 'Według daty złożenia'],
+    ['Liczba sztuk', data.units, 'W zamówieniach złożonych w miesiącu'],
+    ['Wartość zamówień', moneyExact(data.value), 'Także niezakończone'],
+    ['Sprzedaż zakończona', moneyExact(data.completed), 'Według daty zakończenia']
+  ].map(([label, value, note]) => `<div><span>${label}</span><strong>${value}</strong><small>${note}</small></div>`).join('');
+  root.querySelector('#statistics-note').textContent = 'Bez anulowanych zamówień. Zamówienia i sztuki liczymy według daty złożenia, sprzedaż zakończoną według daty zakończenia.' + (data.legacy ? ` W ${data.legacy} zakończonych zamówieniach brakuje daty zakończenia — użyto daty sprzedaży.` : '');
+  const maxDay = Math.max(1, ...data.days.map(d => d.count));
+  root.querySelector('#statistics-daily').innerHTML = `<div class="statistics-bars daily-bars">${data.days.map(d => `<div class="statistics-column"><div class="statistics-bar-space"><i style="height:${d.count / maxDay * 100}%" title="${d.day}: ${d.count} zamówień"></i></div><b>${d.count}</b><span>${d.day}</span></div>`).join('')}</div><p class="form-hint">${data.orders ? 'Dzień miesiąca · liczba zamówień nad każdym numerem dnia.' : 'Brak zamówień w wybranym miesiącu.'}</p>`;
+  const [year, m] = month.split('-').map(Number);
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const key = iso(new Date(year, m - 12 + i, 1)).slice(0, 7);
+    return { key, ...salesMonthStats(state.sales, key) };
+  });
+  const maxValue = Math.max(1, ...months.flatMap(d => [d.value, d.completed]));
+  root.querySelector('#statistics-monthly').innerHTML = `<div class="statistics-bars monthly-bars">${months.map(d => `<div class="statistics-column"><div class="statistics-bar-space"><i style="height:${d.value / maxValue * 100}%" title="${d.key}: zamówienia ${moneyExact(d.value)}"></i><i class="completed-bar" style="height:${d.completed / maxValue * 100}%" title="${d.key}: zakończone ${moneyExact(d.completed)}"></i></div><span>${d.key.slice(5)}<br>${d.key.slice(0, 4)}</span></div>`).join('')}</div><details><summary>Dokładne kwoty dla miesięcy</summary><table><thead><tr><th>Miesiąc</th><th>Zamówienia</th><th>Zakończone</th></tr></thead><tbody>${months.map(d => `<tr><td>${d.key}</td><td>${moneyExact(d.value)}</td><td>${moneyExact(d.completed)}</td></tr>`).join('')}</tbody></table></details>`;
+  input.onchange = renderSalesStatistics;
+  document.querySelectorAll('[data-sales-tab]').forEach(button => {
+    button.onclick = () => {
+      const statistics = button.dataset.salesTab === 'statistics';
+      root.hidden = !statistics;
+      document.querySelector('#sales-list-panel').hidden = statistics;
+      document.querySelectorAll('[data-sales-tab]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      if (statistics) renderSalesStatistics();
+    };
+  });
+}
+
+
+function renderSales() { document.querySelector('#sales-table').innerHTML = salesList(getFilteredSales()); renderSalesAnalysis(); renderSalesStatistics(); }
 
 function renderFilaments() {
   const root = document.querySelector('#filament-catalog');
