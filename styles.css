@@ -162,3 +162,12 @@ select { min-height: 40px; }
 .statistics-values { min-height: 48px; padding-bottom: 8px; font-variant-numeric: tabular-nums; }
 .statistics-values b { font-size: 11px; white-space: nowrap; color: var(--accent-strong); }
 .statistics-values b + b { color: var(--blue); }
+
+.statistics-period-controls { display:flex; flex-wrap:wrap; gap:16px; align-items:end; margin-bottom:24px; }
+.statistics-period-controls .field, .statistics-period-controls .date-range label { display:grid; gap:8px; }
+.statistics-period-controls select { width:240px; max-width:100%; }
+.statistics-period-controls input[type="date"] { color-scheme:light; min-height:48px; }
+:root[data-theme="dark"] .statistics-period-controls input[type="date"] { color-scheme:dark; }
+.statistics-period-controls [hidden] { display:none; }
+.daily-bars .statistics-column { min-width:24px; }
+@media(max-width:600px) { .statistics-period-controls, .statistics-period-controls .field { width:100%; } .statistics-period-controls select { width:100%; } .statistics-period-controls .date-range { flex-wrap:wrap; } }

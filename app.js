@@ -241,13 +241,18 @@ function renderSalesAnalysis() {
   document.querySelector('#sales-analysis-description').textContent = range === 'custom' && (from || to) ? `${from ? `Od ${new Date(`${from}T00:00:00`).toLocaleDateString('pl-PL')}` : 'Od początku'} ${to ? `do ${new Date(`${to}T00:00:00`).toLocaleDateString('pl-PL')}` : 'do dziś'}` : rangeLabel;
 }
 
-function salesMonthStats(sales, month) {
-  const ordered = sales.filter(s => s.status !== 'cancelled' && String(s.date).slice(0, 7) === month);
-  const completed = sales.filter(s => s.status === 'done' && String(saleRecognitionDate(s)).slice(0, 7) === month);
+function salesMonthStats(sales, month, from = "", to = "") {
+  const matches = date => from && to ? String(date) >= from && String(date) <= to : String(date).slice(0, 7) === month;
+  const ordered = sales.filter(s => s.status !== 'cancelled' && matches(s.date));
+  const completed = sales.filter(s => s.status === 'done' && matches(saleRecognitionDate(s)));
   const [year, m] = month.split('-').map(Number);
-  const days = Array.from({ length: new Date(year, m, 0).getDate() }, (_, i) => ({
-    day: i + 1, count: ordered.filter(s => Number(String(s.date).slice(8, 10)) === i + 1).length
-  }));
+  const days = [];
+  const start = from && to ? new Date(from + 'T00:00:00') : new Date(year, m - 1, 1);
+  const end = from && to ? new Date(to + 'T00:00:00') : new Date(year, m, 0);
+  for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+    const key = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    days.push({ day: from && to ? key.slice(8) + '.' + key.slice(5, 7) : date.getDate(), count: ordered.filter(s => s.date === key).length });
+  }
   return {
     orders: ordered.length,
     units: ordered.reduce((sum, s) => sum + saleItems(s).reduce((n, i) => n + Number(i.qty), 0), 0),
@@ -262,20 +267,41 @@ function renderSalesStatistics() {
   const root = document.querySelector('#sales-statistics');
   if (!root) return;
   const input = root.querySelector('#statistics-month');
-  if (!input.value) input.value = localDateToday().slice(0, 7);
-  const month = input.value;
-  if (!/^\d{4}-\d{2}$/.test(month)) return;
-  const data = salesMonthStats(state.sales, month);
+  const today = localDateToday();
+  const currentMonth = today.slice(0, 7);
+  if (input.dataset.currentMonth !== currentMonth) {
+    const selected = input.value;
+    const [y, m] = currentMonth.split('-').map(Number);
+    input.innerHTML = Array.from({ length: 3 }, (_, i) => {
+      const key = iso(new Date(y, m - 1 - i, 1)).slice(0, 7);
+      return '<option value="' + key + '">' + calendarMonthLabel(key) + '</option>';
+    }).join('') + '<option value="custom">Własny zakres dat</option>';
+    if ([...input.options].some(o => o.value === selected)) input.value = selected;
+    input.dataset.currentMonth = currentMonth;
+  }
+  const fromInput = root.querySelector('#statistics-from');
+  const toInput = root.querySelector('#statistics-to');
+  const custom = input.value === 'custom';
+  root.querySelector('#statistics-date-range').hidden = !custom;
+  if (!fromInput.value) fromInput.value = currentMonth + '-01';
+  if (!toInput.value) toInput.value = today;
+  input.onchange = fromInput.onchange = toInput.onchange = renderSalesStatistics;
+  const invalid = custom && (!fromInput.value || !toInput.value || fromInput.value > toInput.value);
+  root.querySelector('#statistics-range-error').hidden = !invalid;
+  for (const id of ['statistics-summary', 'statistics-note', 'statistics-daily', 'statistics-monthly']) root.querySelector('#' + id).hidden = invalid;
+  if (invalid) return;
+  const month = custom ? toInput.value.slice(0, 7) : input.value;
+  const data = salesMonthStats(state.sales, month, custom ? fromInput.value : '', custom ? toInput.value : '');
   root.querySelector('#statistics-summary').innerHTML = [
     ['Liczba zamówień', data.orders, 'Według daty złożenia'],
-    ['Liczba sztuk', data.units, 'W zamówieniach złożonych w miesiącu'],
+    ['Liczba sztuk', data.units, 'W zamówieniach złożonych w okresie'],
     ['Wartość zamówień', moneyExact(data.value), 'Także niezakończone'],
     ['Sprzedaż zakończona', moneyExact(data.completed), 'Według daty zakończenia']
   ].map(([label, value, note]) => `<div><span>${label}</span><strong>${value}</strong><small>${note}</small></div>`).join('');
   root.querySelector('#statistics-note').textContent = 'Bez anulowanych zamówień. Zamówienia i sztuki liczymy według daty złożenia, sprzedaż zakończoną według daty zakończenia.' + (data.legacy ? ` W ${data.legacy} zakończonych zamówieniach brakuje daty zakończenia — użyto daty sprzedaży.` : '');
   const maxDay = Math.max(4, Math.ceil(Math.max(0, ...data.days.map(d => d.count)) / 4) * 4);
   const axis = (maximum, currency = false) => '<div class="statistics-axis" aria-label="Oś Y: ' + (currency ? 'zł' : 'liczba zamówień') + '">' + Array.from({ length: 5 }, (_, i) => '<span style="top:' + (i * 25) + '%">' + (currency ? money(maximum * (4 - i) / 4) : maximum * (4 - i) / 4) + '</span>').join('') + '</div>';
-  root.querySelector('#statistics-daily').innerHTML = `<div class="statistics-plot">${axis(maxDay)}<div class="statistics-bars daily-bars">${data.days.map(d => `<div class="statistics-column"><div class="statistics-bar-space"><i style="height:${d.count / maxDay * 100}%" title="${d.day}: ${d.count} zamówień"></i></div><b>${d.count}</b><span>${d.day}</span></div>`).join('')}</div></div><p class="form-hint">${data.orders ? 'Dzień miesiąca · liczba zamówień nad każdym numerem dnia.' : 'Brak zamówień w wybranym miesiącu.'}</p>`;
+  root.querySelector('#statistics-daily').innerHTML = `<div class="statistics-plot">${axis(maxDay)}<div class="statistics-bars daily-bars">${data.days.map(d => `<div class="statistics-column"><div class="statistics-bar-space"><i style="height:${d.count / maxDay * 100}%" title="${d.day}: ${d.count} zamówień"></i></div><b>${d.count}</b><span>${d.day}</span></div>`).join('')}</div></div><p class="form-hint">${data.orders ? 'Dzień · liczba zamówień nad datą.' : 'Brak zamówień w wybranym okresie.'}</p>`;
   const [year, m] = month.split('-').map(Number);
   const months = Array.from({ length: 12 }, (_, i) => {
     const key = iso(new Date(year, m - 12 + i, 1)).slice(0, 7);

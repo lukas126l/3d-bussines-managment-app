@@ -29,7 +29,9 @@ test('statistics tab preserves month and separates completed totals on desktop a
         document.querySelector('[data-view="sales"]').click();
       });
       await page.locator('[data-sales-tab="statistics"]').click();
-      await page.locator('#statistics-month').fill('2026-11');
+      await page.locator('#statistics-month').selectOption('custom');
+      await page.locator('#statistics-from').fill('2026-11-01');
+      await page.locator('#statistics-to').fill('2026-11-30');
       await page.locator('#statistics-month').dispatchEvent('change');
       assert.equal(await page.locator('#sales-list-panel').isVisible(),false);
       const values=await page.locator('#statistics-summary strong').allTextContents();
@@ -38,7 +40,7 @@ test('statistics tab preserves month and separates completed totals on desktop a
       assert.equal(await page.locator('.daily-bars .statistics-column').count(),30);
       assert.equal(await page.locator('.monthly-bars .statistics-column').count(),12);
       await page.evaluate(()=>renderAll());
-      assert.equal(await page.locator('#statistics-month').inputValue(),'2026-11');
+      assert.equal(await page.locator('#statistics-month').inputValue(),'custom');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
       await page.locator('[data-sales-tab="list"]').click();
       assert.equal(await page.locator('#sales-list-panel').isVisible(),true);
