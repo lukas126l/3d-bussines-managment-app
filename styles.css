@@ -147,3 +147,18 @@ select { min-height: 40px; }
 .statistics-legend span + span { color: var(--blue); }
 .statistics-panel summary { cursor: pointer; padding: 14px 0; }
 @media(max-width:600px) { .statistics-panel { padding: 16px; } }
+
+/* Native month picker follows the application's theme, including its icon. */
+#statistics-month { color-scheme: light; height: 48px; padding: 10px 14px; border-radius: 10px; font-size: 15px; cursor: pointer; }
+:root[data-theme="dark"] #statistics-month { color-scheme: dark; }
+#statistics-month:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#statistics-month::-webkit-calendar-picker-indicator { opacity: 1; cursor: pointer; padding: 4px; }
+.statistics-plot { display: flex; align-items: flex-start; min-width: 810px; }
+.statistics-axis { flex: 0 0 80px; height: 180px; margin-top: 16px; position: sticky; left: 0; z-index: 1; background: var(--surface); color: var(--muted); font-size: 11px; }
+.statistics-axis span { position: absolute; right: 12px; transform: translateY(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.statistics-plot > .statistics-bars { flex: 1; }
+.statistics-bar-space { background-image: repeating-linear-gradient(to top, var(--line) 0, var(--line) 1px, transparent 1px, transparent 25%); }
+.monthly-plot { min-width: 1000px; }
+.statistics-values { min-height: 48px; padding-bottom: 8px; font-variant-numeric: tabular-nums; }
+.statistics-values b { font-size: 11px; white-space: nowrap; color: var(--accent-strong); }
+.statistics-values b + b { color: var(--blue); }
